@@ -26,6 +26,23 @@ const playlist = document.querySelector("#playlist");
 const libraryStatus = document.querySelector("#library-status");
 const transmissionId = document.querySelector("#transmission-id");
 
+const eyeballLayer = new Image();
+const eyelidLayer = new Image();
+eyeballLayer.decoding = "async";
+eyelidLayer.decoding = "async";
+eyeballLayer.src = "assets/eyeball.png";
+eyelidLayer.src = "assets/eyelids.png";
+
+const FACE = {
+  width: 1664,
+  height: 936,
+  leftEye: { x: 620, y: 268, w: 72, h: 70, cx: 656, cy: 303 },
+  rightEye: { x: 941, y: 268, w: 72, h: 70, cx: 977, cy: 303 },
+  leftLid: { x: 600, y: 275, w: 112, h: 67, cx: 656, cy: 308 },
+  rightLid: { x: 921, y: 275, w: 112, h: 67, cx: 977, cy: 308 },
+  mouth: { cx: 832, cy: 596, width: 174 }
+};
+
 let audioContext = null;
 let analyser = null;
 let sourceNode = null;
@@ -38,16 +55,21 @@ let activeTrack = -1;
 let mouthLevel = 0;
 let peakLevel = 0;
 let speechFloor = 0;
+let speechPulse = 0;
 let typingTimer = null;
 let eyeX = 0;
 let eyeY = 0;
 let eyeTargetX = 0;
 let eyeTargetY = 0;
+let pointerEyeX = 0;
+let pointerEyeY = 0;
+let pointerActive = false;
 let nextEyeMove = 0;
 let blinkAmount = 0;
 let blinkState = "open";
 let nextBlink = performance.now() + 3500;
 let blinkStart = 0;
+let lastTime = performance.now();
 
 const fallbackTransmission = [
   "I have been listening to you for a very long time.",
@@ -69,6 +91,17 @@ function resizeCanvas() {
   canvas.width = Math.max(1, Math.round(r.width * d));
   canvas.height = Math.max(1, Math.round(r.height * d));
   ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+
+function imagePoint(px, py) {
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const scale = Math.min(cw / FACE.width, ch / FACE.height);
+  return {
+    x: (cw - FACE.width * scale) / 2 + px * scale,
+    y: (ch - FACE.height * scale) / 2 + py * scale,
+    s: scale
+  };
 }
 
 function prettyName(path) {
@@ -150,6 +183,7 @@ function selectTrack(i, autoPlay = false) {
   started = false;
   mouthLevel = 0;
   peakLevel = 0;
+  speechPulse = 0;
   updatePlaylistSelection();
   if (autoPlay) start();
 }
@@ -185,6 +219,7 @@ function ensureAnalyzer() {
 function calculateSpeechLevel() {
   if (!analyser || audio.paused) {
     mouthLevel *= 0.82;
+    speechPulse *= 0.82;
     return mouthLevel;
   }
 
@@ -207,7 +242,6 @@ function calculateSpeechLevel() {
   }
 
   const band = weightTotal ? weighted / weightTotal : 0;
-
   let rms = 0;
   for (let i = 0; i < waveformData.length; i += 8) {
     const v = (waveformData[i] - 128) / 128;
@@ -219,20 +253,11 @@ function calculateSpeechLevel() {
   const signalLevel = Math.max(0, band - speechFloor * 1.15);
   const target = Math.min(1, signalLevel * 2.5 + Math.max(0, rms - 0.025) * 0.55);
 
+  const pulseTarget = Math.min(1, Math.max(0, target * 1.35 + rms * 0.3));
+  speechPulse += (pulseTarget - speechPulse) * (pulseTarget > speechPulse ? 0.48 : 0.18);
   mouthLevel += (target - mouthLevel) * (target > mouthLevel ? 0.42 : 0.16);
   peakLevel = Math.max(mouthLevel, peakLevel * 0.94);
   return mouthLevel;
-}
-
-function imagePoint(px, py) {
-  const cw = canvas.clientWidth;
-  const ch = canvas.clientHeight;
-  const iw = art.naturalWidth || 1664;
-  const ih = art.naturalHeight || 936;
-  const scale = Math.min(cw / iw, ch / ih);
-  const rw = iw * scale;
-  const rh = ih * scale;
-  return { x: (cw - rw) / 2 + px * scale, y: (ch - rh) / 2 + py * scale, s: scale };
 }
 
 function updateBlink(time) {
@@ -240,6 +265,7 @@ function updateBlink(time) {
     blinkState = "closing";
     blinkStart = time;
   }
+
   if (blinkState === "closing") {
     const t = Math.min(1, (time - blinkStart) / 85);
     blinkAmount = t;
@@ -258,57 +284,80 @@ function updateBlink(time) {
   }
 }
 
-function drawEyeMotion(level, time) {
-  const left = imagePoint(656, 303);
-  const right = imagePoint(977, 303);
+function updateEyeTarget(time) {
+  if (pointerActive) {
+    eyeTargetX = pointerEyeX;
+    eyeTargetY = pointerEyeY;
+    return;
+  }
 
   if (time >= nextEyeMove) {
     nextEyeMove = time + 2400 + Math.random() * 3500;
     eyeTargetX = (Math.random() - 0.5) * 11;
     eyeTargetY = (Math.random() - 0.5) * 5;
   }
+}
+
+function drawLayerCrop(image, source, point, dx, dy, alpha = 1, scaleY = 1) {
+  if (!image.complete || !image.naturalWidth) return;
+  const s = point.s;
+  const dw = source.w * s;
+  const dh = source.h * s;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(point.x + dx * s, point.y + dy * s);
+  ctx.scale(1, scaleY);
+  ctx.drawImage(image, source.x, source.y, source.w, source.h, -dw / 2, -dh / 2, dw, dh);
+  ctx.restore();
+}
+
+function drawIndependentEyes(level, time) {
+  updateEyeTarget(time);
+  updateBlink(time);
 
   eyeX += (eyeTargetX - eyeX) * 0.025;
   eyeY += (eyeTargetY - eyeY) * 0.025;
-  updateBlink(time);
 
-  [left, right].forEach(p => {
-    const s = p.s;
-    const dx = eyeX * s;
-    const dy = eyeY * s;
-    const rx = 23 * s;
-    const ry = Math.max(1.5, 12 * s * (1 - blinkAmount));
+  const lidSpeech = Math.min(0.16, speechPulse * 0.12);
+  const eyeOpen = Math.max(0.02, 1 - blinkAmount - lidSpeech);
+  const irisGlow = 0.92 + level * 0.08;
 
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.shadowColor = "rgba(38,231,255,.85)";
-    ctx.shadowBlur = 7 + level * 12;
-    ctx.strokeStyle = `rgba(38,231,255,${0.22 + level * 0.28})`;
-    ctx.lineWidth = Math.max(0.8, 1.05 * s);
-    ctx.beginPath();
-    ctx.ellipse(p.x + dx, p.y + dy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
+  [FACE.leftEye, FACE.rightEye].forEach(eye => {
+    const p = imagePoint(eye.cx, eye.cy);
+    drawLayerCrop(
+      eyeballLayer,
+      eye,
+      p,
+      eyeX,
+      eyeY,
+      irisGlow,
+      0.92 + Math.min(0.08, level * 0.08)
+    );
+  });
 
-    if (blinkAmount < 0.98) {
-      ctx.fillStyle = `rgba(205,249,255,${0.42 + level * 0.45})`;
-      ctx.beginPath();
-      ctx.arc(p.x + dx, p.y + dy, Math.max(2, 3.8 * s), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(0,12,22,.92)";
-      ctx.beginPath();
-      ctx.arc(p.x + dx, p.y + dy, Math.max(0.9, 1.55 * s), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+  [FACE.leftLid, FACE.rightLid].forEach(lid => {
+    const p = imagePoint(lid.cx, lid.cy);
+    const breathing = 1 - Math.min(0.12, speechPulse * 0.10);
+    const openScale = Math.max(0.04, eyeOpen) * breathing;
+    drawLayerCrop(
+      eyelidLayer,
+      lid,
+      p,
+      0,
+      0,
+      0.96,
+      openScale
+    );
   });
 }
 
 function drawSpeechMouth(level) {
-  const p = imagePoint(832, 596);
+  const p = imagePoint(FACE.mouth.cx, FACE.mouth.cy);
   const s = p.s;
   const cx = p.x;
   const cy = p.y;
-  const width = 174 * s;
+  const width = FACE.mouth.width * s;
   const open = (3 + 37 * level) * s;
 
   ctx.save();
@@ -316,13 +365,11 @@ function drawSpeechMouth(level) {
   ctx.shadowColor = "rgba(38,231,255,.9)";
   ctx.shadowBlur = 5 + level * 17;
 
-  // A restrained dark aperture follows the voice instead of displaying a generic waveform.
   ctx.fillStyle = `rgba(0,4,12,${0.32 + level * 0.5})`;
   ctx.beginPath();
   ctx.ellipse(cx, cy + open * 0.18, width * 0.46, Math.max(2.5 * s, open * 0.43), 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Upper and lower synthetic lip rails.
   ctx.strokeStyle = `rgba(92,239,255,${0.32 + level * 0.62})`;
   ctx.lineWidth = Math.max(0.9, 1.35 * s);
   ctx.beginPath();
@@ -336,7 +383,6 @@ function drawSpeechMouth(level) {
   ctx.quadraticCurveTo(cx + width * 0.16, cy + open * 0.62, cx + width * 0.47, cy + open * 0.08);
   ctx.stroke();
 
-  // Tiny internal speech bars. These are secondary texture, not the visualizer itself.
   if (level > 0.035 && waveformData) {
     const bars = 21;
     const span = width * 0.72;
@@ -346,147 +392,157 @@ function drawSpeechMouth(level) {
       const h = Math.max(1, (1.5 + open * (0.12 + wave * 0.32)) * (0.55 + level * 0.8));
       const x = cx - span / 2 + (span * i) / (bars - 1);
       ctx.fillStyle = `rgba(140,247,255,${0.16 + level * 0.48})`;
-      ctx.fillRect(x - Math.max(0.5, s), cy + open * 0.2 - h / 2, Math.max(1, 1.4 * s), h);
+      ctx.fillRect(x - Math.max(0.5, 0.65 * s), cy - h / 2, Math.max(1, 1.1 * s), h);
     }
   }
   ctx.restore();
 }
 
-function renderFace() {
-  resizeCanvas();
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  ctx.clearRect(0, 0, w, h);
-
+function renderFace(time) {
   const level = calculateSpeechLevel();
-  const time = performance.now();
-
-  drawEyeMotion(level, time);
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  drawIndependentEyes(level, time);
   drawSpeechMouth(level);
-
-  const percent = Math.round(Math.min(1, level) * 100);
-  meter.style.width = `${percent}%`;
-  signal.textContent = `SIGNAL ${String(percent).padStart(3, "0")}%`;
-
-  if (!audio.paused) {
-    status.textContent = "TRANSMISSION ACTIVE";
-    txStatus.textContent = "BROADCASTING";
-  }
-  frame = requestAnimationFrame(renderFace);
 }
 
 function typeTransmission(lines) {
-  clearTimeout(typingTimer);
+  clearInterval(typingTimer);
   terminal.textContent = "";
   let line = 0;
   let char = 0;
-  function step() {
-    if (line >= lines.length) return;
-    if (char === 0) terminal.appendChild(document.createElement("div"));
-    const div = terminal.lastElementChild;
-    div.textContent = `> ${lines[line].slice(0, char + 1)}`;
-    char++;
-    if (char >= lines[line].length) {
-      subtitle.textContent = lines[line];
+  let buffer = "";
+
+  typingTimer = setInterval(() => {
+    if (line >= lines.length) {
+      clearInterval(typingTimer);
+      typingTimer = null;
+      return;
+    }
+    const text = lines[line];
+    if (char < text.length) {
+      buffer += text[char++];
+      terminal.textContent = buffer;
+    } else {
+      buffer += "\n";
+      terminal.textContent = buffer;
       line++;
       char = 0;
-      typingTimer = setTimeout(step, 450);
-    } else {
-      typingTimer = setTimeout(step, 16);
     }
-  }
-  step();
+  }, 28);
 }
 
-function start() {
-  if (!audio.src) {
-    subtitle.textContent = "No transmission loaded. Put audio in /assets/.";
-    return;
-  }
-  if (!ensureAnalyzer()) return;
-  if (audioContext.state === "suspended") audioContext.resume();
+async function start() {
+  if (!audio.src) return;
+  ensureAnalyzer();
+  if (audioContext && audioContext.state === "suspended") await audioContext.resume();
 
-  audio.play().then(() => {
+  try {
+    await audio.play();
     started = true;
-    txStatus.textContent = "BROADCASTING";
     status.textContent = "TRANSMISSION ACTIVE";
-    play.textContent = "PAUSE";
-    if (!frame) renderFace();
+    txStatus.textContent = "TRANSMITTING";
+    subtitle.textContent = tracks[activeTrack]?.name || "GLOBAL ADDRESS";
     typeTransmission(fallbackTransmission);
-  }).catch(e => {
-    console.warn("ECHO playback failed:", e);
-    txStatus.textContent = "PLAYBACK ERROR";
-  });
+    if (!frame) frame = requestAnimationFrame(animationLoop);
+  } catch (e) {
+    console.warn("ECHO playback blocked:", e);
+    subtitle.textContent = "Press PLAY to authorize the transmission.";
+  }
 }
 
-play.addEventListener("click", () => audio.paused ? start() : audio.pause());
-
-stop.addEventListener("click", () => {
+function stopAudio() {
   audio.pause();
   audio.currentTime = 0;
-  mouthLevel = 0;
-  peakLevel = 0;
-  play.textContent = "PLAY";
+  started = false;
   txStatus.textContent = "STANDBY";
   status.textContent = "SYSTEM ONLINE";
-  meter.style.width = "0%";
-  signal.textContent = "SIGNAL 000%";
+  mouthLevel = 0;
+  speechPulse = 0;
   current.textContent = "0:00";
   seek.value = "0";
-  subtitle.textContent = tracks[activeTrack]?.name || "Select a transmission and press PLAY.";
-  terminal.textContent = "";
-  clearTimeout(typingTimer);
+}
+
+function animationLoop(time) {
+  const dt = Math.min(50, time - lastTime);
+  lastTime = time;
+  renderFace(time);
+
+  if (audio.duration) {
+    seek.value = String((audio.currentTime / audio.duration) * 100);
+    current.textContent = formatTime(audio.currentTime);
+  }
+
+  const level = mouthLevel;
+  meter.style.width = `${Math.round(Math.min(1, level * 1.35) * 100)}%`;
+  signal.textContent = `SIGNAL ${String(Math.round(Math.min(99, 18 + level * 81))).padStart(3, "0")}%`;
+
+  if (!audio.paused && Number.isFinite(audio.duration) && audio.duration > 0) {
+    const progress = audio.currentTime / audio.duration;
+    meter.style.transform = `scaleX(${Math.max(0.02, progress)})`;
+  } else {
+    meter.style.transform = "scaleX(0.02)";
+  }
+
+  clock.textContent = new Date().toLocaleTimeString([], { hour12: false });
+  frame = requestAnimationFrame(animationLoop);
+}
+
+canvas.addEventListener("pointermove", event => {
+  const rect = canvas.getBoundingClientRect();
+  const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+  pointerEyeX = Math.max(-7, Math.min(7, nx * 7));
+  pointerEyeY = Math.max(-3, Math.min(3, ny * 3));
+  pointerActive = true;
 });
+
+canvas.addEventListener("pointerleave", () => {
+  pointerActive = false;
+});
+
+play.addEventListener("click", start);
+stop.addEventListener("click", stopAudio);
 
 seek.addEventListener("input", () => {
-  if (Number.isFinite(audio.duration)) audio.currentTime = Number(seek.value) / 100 * audio.duration;
+  if (!Number.isFinite(audio.duration)) return;
+  audio.currentTime = (Number(seek.value) / 100) * audio.duration;
 });
 
-audio.addEventListener("loadedmetadata", () => duration.textContent = formatTime(audio.duration));
-audio.addEventListener("timeupdate", () => {
-  const p = Number.isFinite(audio.duration) ? audio.currentTime / audio.duration * 100 : 0;
-  seek.value = String(p);
-  current.textContent = formatTime(audio.currentTime);
+audio.addEventListener("loadedmetadata", () => {
   duration.textContent = formatTime(audio.duration);
 });
+
 audio.addEventListener("play", () => {
-  play.textContent = "PAUSE";
-  txStatus.textContent = "BROADCASTING";
+  started = true;
+  txStatus.textContent = "TRANSMITTING";
   status.textContent = "TRANSMISSION ACTIVE";
-  if (!frame) renderFace();
 });
+
 audio.addEventListener("pause", () => {
-  play.textContent = "PLAY";
-  txStatus.textContent = started ? "PAUSED" : "STANDBY";
-  status.textContent = "SYSTEM ONLINE";
+  if (!audio.ended) {
+    txStatus.textContent = "PAUSED";
+    status.textContent = "SYSTEM ONLINE";
+  }
 });
+
 audio.addEventListener("ended", () => {
-  play.textContent = "PLAY";
+  started = false;
   txStatus.textContent = "COMPLETE";
   status.textContent = "SYSTEM ONLINE";
   mouthLevel = 0;
+  speechPulse = 0;
 });
-audio.addEventListener("error", () => {
-  txStatus.textContent = "AUDIO OFFLINE";
-  audioStatus.textContent = "FILE ERROR";
-});
-
-art.addEventListener("load", () => {
-  fallback.style.display = "none";
-  resizeCanvas();
-});
-art.addEventListener("error", () => {
-  art.style.display = "none";
-  fallback.style.display = "block";
-});
-
-function updateClock() {
-  clock.textContent = new Date().toLocaleTimeString("en-US", { hour12: false });
-  requestAnimationFrame(updateClock);
-}
 
 window.addEventListener("resize", resizeCanvas);
-nextEyeMove = performance.now() + 1200;
+
 resizeCanvas();
-updateClock();
+nextEyeMove = performance.now() + 1200;
+
+if (art) {
+  art.addEventListener("error", () => {
+    fallback.classList.add("visible");
+  });
+}
+
 discoverAudio();
+frame = requestAnimationFrame(animationLoop);
