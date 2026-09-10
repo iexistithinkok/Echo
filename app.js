@@ -30,8 +30,8 @@ const eyeballLayer = new Image();
 const eyelidLayer = new Image();
 eyeballLayer.decoding = "async";
 eyelidLayer.decoding = "async";
-eyeballLayer.src = "assets/eyeball.png";
-eyelidLayer.src = "assets/eyelids.png";
+eyeballLayer.src = "eyeball.png";
+eyelidLayer.src = "eyelids.png";
 
 const FACE = {
   width: 1664,
