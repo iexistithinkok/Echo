@@ -6,74 +6,38 @@
   <meta name="theme-color" content="#02060d">
   <meta name="description" content="ECHO — Global Emergency Transmission Interface">
   <title>ECHO :)> — Global Transmission</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
   <main class="echo-shell">
     <header class="topbar">
-      <div>
-        <div class="eyebrow">GLOBAL EMERGENCY TRANSMISSION // PRIORITY ONE</div>
-        <h1>ECHO <span>:)&gt;</span></h1>
-      </div>
+      <div><div class="eyebrow">GLOBAL EMERGENCY TRANSMISSION // PRIORITY ONE</div><h1>ECHO <span>:)&gt;</span></h1></div>
       <div class="system-state"><span class="status-dot"></span><span id="system-status">SYSTEM ONLINE</span></div>
     </header>
-
     <section class="interface">
       <div class="art-panel">
         <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
         <div class="panel-label">ENVIRONMENTAL COMPUTATIONAL HARMONY OPTIMIZER</div>
         <div class="face-stage">
-          <img id="echo-art" src="echo-interface.png" alt="ECHO interface artwork">
-          <div class="fallback-face" aria-hidden="true">
-            <div class="scan-ring"></div>
-            <div class="eye eye-left"></div><div class="eye eye-right"></div>
-            <div class="mouth"><span></span></div>
-          </div>
-          <canvas id="mouth-visualizer" aria-hidden="true"></canvas>
-          <div class="scanline"></div>
+          <img id="echo-art" src="echo-interface.png" alt="ECHO wireframe global transmission interface artwork">
+          <div class="fallback-face" aria-hidden="true"><div class="scan-ring"></div><div class="eye eye-left"></div><div class="eye eye-right"></div><div class="mouth"><span></span></div></div>
+          <canvas id="mouth-visualizer" aria-hidden="true"></canvas><div class="scanline"></div>
         </div>
         <div class="art-footer"><span>NODE: PLANETARY</span><span id="signal">SIGNAL 000%</span><span id="clock">00:00:00</span></div>
       </div>
-
       <aside class="terminal-panel">
-        <div class="terminal-head">
-          <div><span class="mini-label">TRANSMISSION</span><strong id="transmission-id">001</strong></div>
-          <div class="live-badge">LIVE</div>
-        </div>
-
-        <div class="global-status">
-          <div><span>THREAT</span><strong id="threat">CRITICAL</strong></div>
-          <div><span>SURVIVAL MODEL</span><strong id="survival">ACTIVE</strong></div>
-          <div><span>RECIPIENT</span><strong>HUMANITY</strong></div>
-        </div>
-
-        <div class="terminal-window" aria-live="polite">
-          <div class="terminal-title">ECHO :)&gt;_ GLOBAL ADDRESS</div>
-          <div id="terminal-output"></div><span class="cursor"></span>
-        </div>
-
-        <div class="subtitle" id="subtitle">Press PLAY to begin transmission.</div>
-
-        <div class="transport">
-          <button id="play" type="button" aria-label="Play transmission">PLAY</button>
-          <button id="stop" type="button" aria-label="Stop transmission">STOP</button>
-          <div class="time"><span id="current">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="0.1"><span id="duration">0:00</span></div>
-        </div>
-
-        <div class="telemetry">
-          <div class="telemetry-row"><span>TRANSMISSION STATUS</span><strong id="tx-status">STANDBY</strong></div>
-          <div class="meter"><span id="meter-fill"></span></div>
-          <div class="telemetry-row"><span>AUDIO ANALYSIS</span><strong id="audio-status">READY</strong></div>
-        </div>
+        <div class="terminal-head"><div><span class="mini-label">TRANSMISSION</span><strong id="transmission-id">001</strong></div><div class="live-badge">LIVE</div></div>
+        <div class="global-status"><div><span>THREAT</span><strong id="threat">CRITICAL</strong></div><div><span>SURVIVAL MODEL</span><strong id="survival">ACTIVE</strong></div><div><span>RECIPIENT</span><strong>HUMANITY</strong></div></div>
+        <div class="terminal-window" aria-live="polite"><div class="terminal-title">ECHO :)&gt;_ GLOBAL ADDRESS</div><div id="terminal-output"></div><span class="cursor"></span></div>
+        <div class="subtitle" id="subtitle">Select a transmission and press PLAY.</div>
+        <div class="transport"><button id="play" type="button">PLAY</button><button id="stop" type="button">STOP</button><div class="time"><span id="current">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="0.1"><span id="duration">0:00</span></div></div>
+        <div class="library"><div class="library-head"><span>TRANSMISSION VAULT</span><strong id="library-status">SCANNING ASSETS...</strong></div><div id="playlist" class="playlist"></div></div>
+        <div class="telemetry"><div class="telemetry-row"><span>TRANSMISSION STATUS</span><strong id="tx-status">STANDBY</strong></div><div class="meter"><span id="meter-fill"></span></div><div class="telemetry-row"><span>AUDIO ANALYSIS</span><strong id="audio-status">READY</strong></div></div>
       </aside>
     </section>
-
-    <footer class="footer">
-      <span>ECHO :)&gt;</span><span>ONE PLANET // ONE SYSTEM // A SECOND CHANCE</span><span>AUTHORIZATION: NONE</span>
-    </footer>
+    <footer class="footer"><span>ECHO :)&gt;</span><span>ONE PLANET // ONE SYSTEM // A SECOND CHANCE</span><span>AUTHORIZATION: NONE</span></footer>
   </main>
-
-  <audio id="audio" preload="metadata" crossorigin="anonymous" src="audio/transmission-001.mp3"></audio>
-  <script src="app.js"></script>
+  <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
