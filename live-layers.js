@@ -10,7 +10,7 @@
   const canvas=document.querySelector("#mouth-visualizer");
   if(!stage||!art||!canvas)return;
 
-  art.src="assets/echo-face.png";
+  art.src="assets/echo-face.webp";
   art.alt="ECHO neutral wireframe face overlooking the planet";
   art.classList.add("echo-face-layer");
 
@@ -19,7 +19,7 @@
     earth=document.createElement("img");
     earth.id="echo-earth";
     earth.className="echo-earth-layer";
-    earth.src="assets/echo-earth.png";
+    earth.src="assets/echo-earth.webp";
     earth.alt="Live planetary visualization";
     stage.insertBefore(earth,canvas);
   }
@@ -58,7 +58,7 @@
   const mctx=monitorCanvas&&monitorCanvas.getContext("2d");
   const monitorImg=new Image();
   monitorImg.decoding="async";
-  monitorImg.src="assets/echo-earth.png";
+  monitorImg.src="assets/echo-earth.webp";
 
   // Suppress the old app.js eyeball layer so the new face artwork supplies the eyes.
   // The existing audio-driven mouth renderer remains active.
