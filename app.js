@@ -27,21 +27,23 @@ const libraryStatus = document.querySelector("#library-status");
 const transmissionId = document.querySelector("#transmission-id");
 
 const eyeballLayer = new Image();
-const eyelidLayer = new Image();
 eyeballLayer.decoding = "async";
-eyelidLayer.decoding = "async";
 eyeballLayer.src = "eyeball.png";
-eyelidLayer.src = "eyelids.png";
 
 const FACE = {
   width: 1664,
   height: 936,
-  leftEye: { x: 620, y: 268, w: 72, h: 70, cx: 656, cy: 303 },
-  rightEye: { x: 941, y: 268, w: 72, h: 70, cx: 977, cy: 303 },
-  leftLid: { x: 600, y: 275, w: 112, h: 67, cx: 656, cy: 308 },
-  rightLid: { x: 921, y: 275, w: 112, h: 67, cx: 977, cy: 308 },
+  eyes: [
+    { cx: 656, cy: 293, w: 252, h: 132, mirror: false },
+    { cx: 1008, cy: 293, w: 252, h: 132, mirror: true }
+  ],
   mouth: { cx: 832, cy: 596, width: 174 }
 };
+
+// eyeball.png is a standalone artwork canvas, not a 1:1 overlay for the
+// master image. Its left eye is the cleanest matched source; mirror it so the
+// two rendered eyes always stay a true pair.
+const EYE_SOURCE = { x: 435, y: 350, w: 330, h: 160 };
 
 let audioContext = null;
 let analyser = null;
@@ -298,18 +300,58 @@ function updateEyeTarget(time) {
   }
 }
 
-function drawLayerCrop(image, source, point, dx, dy, alpha = 1, scaleY = 1) {
-  if (!image.complete || !image.naturalWidth) return;
-  const s = point.s;
-  const dw = source.w * s;
-  const dh = source.h * s;
+function traceEyeSocket(cx, cy, width, height) {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - halfWidth, cy);
+  ctx.quadraticCurveTo(cx, cy - halfHeight, cx + halfWidth, cy);
+  ctx.quadraticCurveTo(cx, cy + halfHeight, cx - halfWidth, cy);
+  ctx.closePath();
+}
+
+function drawEye(eye, gazeX, gazeY, closure, level) {
+  if (!eyeballLayer.complete || !eyeballLayer.naturalWidth) return;
+
+  const point = imagePoint(eye.cx, eye.cy);
+  const width = eye.w * point.s;
+  const height = eye.h * point.s;
+  const offsetX = gazeX * point.s;
+  const offsetY = gazeY * point.s;
 
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(point.x + dx * s, point.y + dy * s);
-  ctx.scale(1, scaleY);
-  ctx.drawImage(image, source.x, source.y, source.w, source.h, -dw / 2, -dh / 2, dw, dh);
+  traceEyeSocket(point.x, point.y, width, height);
+  ctx.clip();
+
+  ctx.globalAlpha = 0.92 + level * 0.08;
+  ctx.translate(point.x + offsetX, point.y + offsetY);
+  if (eye.mirror) ctx.scale(-1, 1);
+  ctx.drawImage(
+    eyeballLayer,
+    EYE_SOURCE.x,
+    EYE_SOURCE.y,
+    EYE_SOURCE.w,
+    EYE_SOURCE.h,
+    -width / 2,
+    -height / 2,
+    width,
+    height
+  );
   ctx.restore();
+
+  // Close the socket from both edges. The master artwork already supplies the
+  // cyan socket outline, so this keeps blinking clean without adding a second
+  // mismatched eyelid image layer.
+  if (closure > 0) {
+    const cover = (height / 2) * closure;
+    ctx.save();
+    traceEyeSocket(point.x, point.y, width, height);
+    ctx.clip();
+    ctx.fillStyle = "#01070d";
+    ctx.fillRect(point.x - width / 2, point.y - height / 2, width, cover);
+    ctx.fillRect(point.x - width / 2, point.y + height / 2 - cover, width, cover);
+    ctx.restore();
+  }
 }
 
 function drawIndependentEyes(level, time) {
@@ -320,36 +362,8 @@ function drawIndependentEyes(level, time) {
   eyeY += (eyeTargetY - eyeY) * 0.025;
 
   const lidSpeech = Math.min(0.16, speechPulse * 0.12);
-  const eyeOpen = Math.max(0.02, 1 - blinkAmount - lidSpeech);
-  const irisGlow = 0.92 + level * 0.08;
-
-  [FACE.leftEye, FACE.rightEye].forEach(eye => {
-    const p = imagePoint(eye.cx, eye.cy);
-    drawLayerCrop(
-      eyeballLayer,
-      eye,
-      p,
-      eyeX,
-      eyeY,
-      irisGlow,
-      0.92 + Math.min(0.08, level * 0.08)
-    );
-  });
-
-  [FACE.leftLid, FACE.rightLid].forEach(lid => {
-    const p = imagePoint(lid.cx, lid.cy);
-    const breathing = 1 - Math.min(0.12, speechPulse * 0.10);
-    const openScale = Math.max(0.04, eyeOpen) * breathing;
-    drawLayerCrop(
-      eyelidLayer,
-      lid,
-      p,
-      0,
-      0,
-      0.96,
-      openScale
-    );
-  });
+  const closure = Math.min(1, blinkAmount + lidSpeech);
+  FACE.eyes.forEach(eye => drawEye(eye, eyeX, eyeY, closure, level));
 }
 
 function drawSpeechMouth(level) {
