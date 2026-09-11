@@ -1,7 +1,7 @@
 /* ECHO live layer system */
 .face-stage { position: relative; isolation: isolate; }
 #echo-art.echo-face-layer { position:absolute; z-index:1; left:50%; bottom:-32%; width:90%; height:auto; max-width:none; object-fit:contain; object-position:center bottom; transform:translateX(-50%); display:block; pointer-events:none; }
-#echo-earth.echo-earth-layer { position:absolute; z-index:2; left:50%; top:58%; width:120%; height:auto; max-width:none; transform:translateX(-50%); transform-origin:50% 50%; pointer-events:none; filter:saturate(1.05) contrast(1.05); animation:echoEarthSpin 180s linear infinite; }
+#echo-earth.echo-earth-layer { position:absolute; z-index:2; left:50%; top:66%; width:120%; height:auto; max-width:none; transform:translateX(-50%); transform-origin:50% 50%; pointer-events:none; filter:saturate(1.05) contrast(1.05); animation:echoEarthSpin 180s linear infinite; }
 @keyframes echoEarthSpin { from{transform:translateX(-50%) rotate(0deg)} to{transform:translateX(-50%) rotate(360deg)} }
 #mouth-visualizer { z-index:5 !important; }
 #earth-signal.earth-signal-layer { position:absolute; inset:0; z-index:4; width:100%; height:100%; pointer-events:none; }
@@ -13,4 +13,4 @@
 .monitor-grid span { display:flex; justify-content:space-between; gap:8px; border-top:1px solid rgba(38,231,255,.08); padding-top:3px; }
 .monitor-grid b { color:#d8fbff; font-weight:500; }
 .live-terminal-line { opacity:.9; }
-@media (max-width:900px) { #echo-art.echo-face-layer{width:104%;bottom:-27%;} #echo-earth.echo-earth-layer{width:145%;top:60%;} #planet-monitor-canvas{height:150px;} }
+@media (max-width:900px) { #echo-art.echo-face-layer{width:104%;bottom:-27%;} #echo-earth.echo-earth-layer{width:145%;top:68%;} #planet-monitor-canvas{height:150px;} }
