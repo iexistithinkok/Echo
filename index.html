@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#02060d">
   <meta name="description" content="ECHO — Global Emergency Transmission Interface">
   <title>ECHO :)> — Global Transmission</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
   <main class="echo-shell">
@@ -14,30 +14,69 @@
       <div><div class="eyebrow">GLOBAL EMERGENCY TRANSMISSION // PRIORITY ONE</div><h1>ECHO <span>:)&gt;</span></h1></div>
       <div class="system-state"><span class="status-dot"></span><span id="system-status">SYSTEM ONLINE</span></div>
     </header>
+
     <section class="interface">
       <div class="art-panel">
         <div class="face-stage">
-          <img id="echo-art" src="assets/echo-frame-02.png?v=12" alt="ECHO neutral wireframe face" width="1664" height="936">
+          <!-- The artwork is the base layer. Everything inside this stage is intentionally rendered above it. -->
+          <div class="environment-label">ENVIRONMENTAL COMPUTATIONAL HARMONY OPTIMIZER</div>
+
+          <canvas id="mouth-visualizer" aria-hidden="true"></canvas>
+
+          <div class="scanline" aria-hidden="true"></div>
+
+          <div class="corner tl" aria-hidden="true"></div>
+          <div class="corner tr" aria-hidden="true"></div>
+          <div class="corner bl" aria-hidden="true"></div>
+          <div class="corner br" aria-hidden="true"></div>
+
+          <div class="art-footer" aria-hidden="true">
+            <span>NODE: PLANETARY</span>
+            <span id="signal">SIGNAL 018%</span>
+            <span id="clock">00:00:00</span>
+          </div>
         </div>
       </div>
+
       <aside class="terminal-panel">
         <div class="terminal-head"><div><span class="mini-label">TRANSMISSION</span><strong id="transmission-id">001</strong></div><div class="live-badge">LIVE</div></div>
-        <div class="global-status"><div><span>THREAT</span><strong id="threat">CRITICAL</strong></div><div><span>SURVIVAL MODEL</span><strong id="survival">ACTIVE</strong></div><div><span>RECIPIENT</span><strong>HUMANITY</strong></div></div>
+        <div class="global-status">
+          <div><span>THREAT</span><strong id="threat">CRITICAL</strong></div>
+          <div><span>SURVIVAL MODEL</span><strong id="survival">ACTIVE</strong></div>
+          <div><span>RECIPIENT</span><strong>HUMANITY</strong></div>
+        </div>
         <div class="terminal-window" aria-live="polite"><div class="terminal-title">ECHO :)&gt;_ GLOBAL ADDRESS</div><div id="terminal-output"></div><span class="cursor"></span></div>
         <div class="subtitle" id="subtitle">Load an audio file or select a transmission, then press PLAY.</div>
-        <div class="transport"><button id="play" type="button">PLAY</button><button id="stop" type="button">STOP</button><div class="time"><span id="current">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="0.1"><span id="duration">0:00</span></div></div>
+
+        <div class="transport">
+          <button id="play" type="button">PLAY</button>
+          <button id="stop" type="button">STOP</button>
+          <div class="time"><span id="current">0:00</span><input id="seek" type="range" min="0" max="100" value="0" step="0.1"><span id="duration">0:00</span></div>
+        </div>
+
         <div class="creator-tools">
           <label class="file-button">LOAD AUDIO<input id="audio-upload" type="file" accept="audio/*"></label>
           <button id="trailer-mode" type="button">TRAILER MODE</button>
           <span id="upload-status">LOCAL FILE READY</span>
         </div>
-        <div class="library"><div class="library-head"><span>TRANSMISSION VAULT</span><strong id="library-status">SCANNING ASSETS...</strong></div><div id="playlist" class="playlist"></div></div>
-        <div class="telemetry"><div class="telemetry-row"><span>TRANSMISSION STATUS</span><strong id="tx-status">STANDBY</strong></div><div class="meter"><span id="meter-fill"></span></div><div class="telemetry-row"><span>AUDIO ANALYSIS</span><strong id="audio-status">READY</strong></div></div>
+
+        <div class="library">
+          <div class="library-head"><span>TRANSMISSION VAULT</span><strong id="library-status">SCANNING ASSETS...</strong></div>
+          <div id="playlist" class="playlist"></div>
+        </div>
+
+        <div class="telemetry">
+          <div class="telemetry-row"><span>TRANSMISSION STATUS</span><strong id="tx-status">STANDBY</strong></div>
+          <div class="meter"><span id="meter-fill"></span></div>
+          <div class="telemetry-row"><span>AUDIO ANALYSIS</span><strong id="audio-status">READY</strong></div>
+        </div>
       </aside>
     </section>
+
     <footer class="footer"><span>ECHO :)&gt;</span><span>ONE PLANET // ONE SYSTEM // A SECOND CHANCE</span><span>AUTHORIZATION: NONE</span></footer>
   </main>
+
   <audio id="audio" preload="metadata"></audio>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
