@@ -1,0 +1,167 @@
+{
+  "repo_modified": false,
+  "main_changed": false,
+  "geometry": {
+    "left_eye": {
+      "x": 485,
+      "y": 439,
+      "width": 300,
+      "height": 150,
+      "center": [
+        635,
+        514
+      ]
+    },
+    "right_eye": {
+      "x": 899,
+      "y": 433,
+      "width": 300,
+      "height": 150,
+      "center": [
+        1049,
+        508
+      ]
+    },
+    "left_eyelid": {
+      "x": 465,
+      "y": 380,
+      "width": 340,
+      "height": 150
+    },
+    "right_eyelid": {
+      "x": 879,
+      "y": 374,
+      "width": 340,
+      "height": 150
+    },
+    "mouth": {
+      "x": 662,
+      "y": 615,
+      "width": 360,
+      "height": 176,
+      "center": [
+        842,
+        703
+      ]
+    }
+  },
+  "centers": {
+    "left_eye": [
+      635,
+      514
+    ],
+    "right_eye": [
+      1049,
+      508
+    ],
+    "mouth": [
+      842,
+      703
+    ]
+  },
+  "asset_stats": {
+    "echo-face-base.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 7.5754,
+      "bbox": [
+        0,
+        0,
+        1664,
+        936
+      ]
+    },
+    "echo-eye-left.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 97.7849,
+      "bbox": [
+        484,
+        442,
+        787,
+        587
+      ]
+    },
+    "echo-eye-right.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 97.7849,
+      "bbox": [
+        898,
+        436,
+        1201,
+        581
+      ]
+    },
+    "echo-eyelid-left.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 98.3579,
+      "bbox": [
+        460,
+        442,
+        811,
+        587
+      ]
+    },
+    "echo-eyelid-right.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 98.3579,
+      "bbox": [
+        874,
+        436,
+        1225,
+        581
+      ]
+    },
+    "echo-mouth.png": {
+      "size": [
+        1664,
+        936
+      ],
+      "mode": "RGBA",
+      "has_alpha": true,
+      "transparent_pct": 96.8549,
+      "bbox": [
+        666,
+        615,
+        1019,
+        792
+      ]
+    }
+  },
+  "reconstruction_rgb_mae": 0.0,
+  "reconstruction_rgb_max_error": 0,
+  "sha256": {
+    "echo-face-base.png": "4dd39aed6cef4813654cd1a908b0385aa0f605a6607ae63c2274a090e893b5ec",
+    "echo-eye-left.png": "ffcdfb229152a558853f2305e24bc4dcccfef28741d9abafccfa957146c10ddf",
+    "echo-eye-right.png": "f38d5643f7d490503362696ece09fdb1ee6d82a35e0d46d72f7da844ab778475",
+    "echo-eyelid-left.png": "2bae51631e06c85c9920d5368ed1e879b56e7857453407a42001864380fb84cc",
+    "echo-eyelid-right.png": "870d5e7489a2f2e87b6b53e088c0bb9fb105a5465656c8df42775a77540f1005",
+    "echo-mouth.png": "098aaa40bff363f3145bf0a49a7b14310a5c4d8a40089f1009137038b2bdb6d8"
+  },
+  "open_preview": "/mnt/data/echo_face_asset_system_v6/echo-face-open-composite-preview.png",
+  "blink_preview": "/mnt/data/echo_face_asset_system_v6/echo-face-blink-composite-preview.png",
+  "contact_sheet": "/mnt/data/echo_face_asset_system_v6/echo-face-layer-contact-sheet.png"
+}
