@@ -33,15 +33,33 @@ const uploadStatus=document.querySelector("#upload-status");
 const trailerMode=document.querySelector("#trailer-mode");
 
 const FACE={width:1664,height:936,eyes:[
-  {cx:656,cy:293,w:252,h:132},
-  {cx:1008,cy:293,w:252,h:132}
-],mouth:{cx:808,cy:627,width:280,height:54}};
+  // Resting iris centers are taken from the visible iris positions in echo-frame-02.png.
+  // Socket geometry is separate so tracking can be clamped to the actual eye opening.
+  {
+    rest:{x:621,y:278},
+    socket:{cx:657,cy:279,rx:86,ry:50},
+    pupilRadius:5.5,
+    irisRadius:15
+  },
+  {
+    rest:{x:958,y:273},
+    socket:{cx:1005,cy:279,rx:86,ry:50},
+    pupilRadius:5.5,
+    irisRadius:15
+  }
+],mouth:{
+  cx:835,
+  cy:629,
+  openingWidth:285,
+  openingHeight:120
+}};
 
 let audioContext=null,analyser=null,sourceNode=null,frequencyData=null,waveformData=null;
 let animationFrame=null,tracks=[],activeTrack=-1,localObjectUrl=null;
 let mouthLevel=0,speechPulse=0,speechFloor=0;
-let eyeX=0,eyeY=0,eyeTargetX=0,eyeTargetY=0;
-let pointerEyeX=0,pointerEyeY=0,pointerActive=false,nextEyeMove=0;
+let eyeX=[0,0],eyeY=[0,0];
+let eyeTargetX=[0,0],eyeTargetY=[0,0];
+let pointerClientX=0,pointerClientY=0,pointerActive=false,nextEyeMove=0;
 let blinkAmount=0,blinkState="open",blinkStart=0,nextBlink=performance.now()+3500;
 let typingTimer=null;
 
@@ -75,6 +93,31 @@ function imagePoint(px,py){
   const cw=faceStage.clientWidth,ch=faceStage.clientHeight;
   const scale=Math.min(cw/FACE.width,ch/FACE.height);
   return{x:(cw-FACE.width*scale)/2+px*scale,y:(ch-FACE.height*scale)/2+py*scale,s:scale};
+}
+
+function pointerArtworkPoint(clientX,clientY){
+  const r=faceStage.getBoundingClientRect();
+  const cw=r.width,ch=r.height;
+  const scale=Math.min(cw/FACE.width,ch/FACE.height);
+  const ox=(cw-FACE.width*scale)/2;
+  const oy=(ch-FACE.height*scale)/2;
+  return{
+    x:(clientX-r.left-ox)/scale,
+    y:(clientY-r.top-oy)/scale
+  };
+}
+
+function clampPupilToSocket(x,y,eye){
+  const rx=Math.max(1,eye.socket.rx-eye.irisRadius);
+  const ry=Math.max(1,eye.socket.ry-eye.irisRadius);
+  const nx=(x-eye.socket.cx)/rx;
+  const ny=(y-eye.socket.cy)/ry;
+  const d=Math.hypot(nx,ny);
+  if(d<=1)return{x,y};
+  return{
+    x:eye.socket.cx+(nx/d)*rx,
+    y:eye.socket.cy+(ny/d)*ry
+  };
 }
 
 function setImageState(ok){
@@ -288,8 +331,8 @@ function drawEyes(time){
 
 function drawSpeechMouth(level){
   const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy),s=p.s;
-  const width=FACE.mouth.width*s;
-  const height=FACE.mouth.height*s;
+  const width=FACE.mouth.openingWidth*s;
+  const height=FACE.mouth.openingHeight*s;
   const amplitude=(2+13*level)*s;
 
   /* This canvas is RGBA with a transparent background.
@@ -390,13 +433,14 @@ function animationLoop(time){
   animationFrame=requestAnimationFrame(animationLoop);
 }
 
-eyeCanvas.addEventListener("pointermove",e=>{
-  const r=eyeCanvas.getBoundingClientRect();
-  pointerEyeX=Math.max(-7,Math.min(7,(((e.clientX-r.left)/r.width)*2-1)*7));
-  pointerEyeY=Math.max(-3,Math.min(3,(((e.clientY-r.top)/r.height)*2-1)*3));
+window.addEventListener("pointermove",e=>{
+  pointerClientX=e.clientX;
+  pointerClientY=e.clientY;
   pointerActive=true;
 });
-eyeCanvas.addEventListener("pointerleave",()=>pointerActive=false);
+window.addEventListener("blur",()=>{
+  pointerActive=false;
+});
 
 play.addEventListener("click",start);
 stop.addEventListener("click",stopAudio);
