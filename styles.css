@@ -12,3 +12,5 @@ body.trailer-mode .art-panel{min-height:100vh;height:100vh;border:0}
 body.trailer-mode .panel-label{top:24px;left:28px}
 body.trailer-mode .art-footer{left:28px;right:28px;bottom:24px}
 body.trailer-mode #echo-art{width:100%;height:100%;object-fit:contain}
+
+.fallback-face.visible{display:block;z-index:2;}
