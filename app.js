@@ -71,22 +71,21 @@ function imagePoint(px,py){
 
 function setImageState(ok){
   if(!art)return;
-  if(ok){
-    art.classList.add("echo-face-layer");
-    art.style.display="block";
-    if(fallback)fallback.classList.remove("visible");
-  }else{
-    art.style.display="none";
-    if(fallback)fallback.classList.add("visible");
-  }
+  art.classList.add("echo-face-layer");
+  art.style.display="block";
+  art.style.visibility="visible";
+  if(fallback)fallback.classList.remove("visible");
+  if(!ok)console.warn("ECHO artwork did not report a successful load; leaving the image layer visible.");
 }
 
 function verifyArtwork(){
   if(!art)return;
-  const ready=art.complete&&art.naturalWidth>0;
-  if(ready)setImageState(true);
-  else art.addEventListener("load",()=>setImageState(true),{once:true});
-  art.addEventListener("error",()=>setImageState(false),{once:false});
+  if(art.complete&&art.naturalWidth>0){
+    setImageState(true);
+    return;
+  }
+  art.addEventListener("load",()=>setImageState(true),{once:true});
+  art.addEventListener("error",()=>console.warn("ECHO artwork load error:",art.currentSrc||art.src),{once:true});
 }
 
 function prettyName(path){
