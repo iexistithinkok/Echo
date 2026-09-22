@@ -1,8 +1,8 @@
 "use strict";
 
-/* ECHO live-layers v1
-   Artwork is the stage. JavaScript makes the computer behave like a computer:
-   planetary layer, mini planet monitor, live telemetry, clock and signal paths.
+/* ECHO live-layers
+   Uses only assets that actually exist in the repository.
+   The main artwork is echo-frame-02.png; no missing WebP assets are requested.
 */
 (() => {
   const stage=document.querySelector(".face-stage");
@@ -10,19 +10,9 @@
   const canvas=document.querySelector("#mouth-visualizer");
   if(!stage||!art||!canvas)return;
 
-  art.src="assets/echo-face.webp";
-  art.alt="ECHO neutral wireframe face overlooking the planet";
+  art.src="assets/echo-frame-02.png";
+  art.alt="ECHO neutral wireframe face";
   art.classList.add("echo-face-layer");
-
-  let earth=document.querySelector("#echo-earth");
-  if(!earth){
-    earth=document.createElement("img");
-    earth.id="echo-earth";
-    earth.className="echo-earth-layer";
-    earth.src="assets/echo-earth.webp";
-    earth.alt="Live planetary visualization";
-    stage.insertBefore(earth,canvas);
-  }
 
   let horizon=document.querySelector("#earth-signal");
   if(!horizon){
@@ -56,12 +46,8 @@
 
   const monitorCanvas=document.querySelector("#planet-monitor-canvas");
   const mctx=monitorCanvas&&monitorCanvas.getContext("2d");
-  const monitorImg=new Image();
-  monitorImg.decoding="async";
-  monitorImg.src="assets/echo-earth.webp";
 
-  // Suppress the old app.js eyeball layer so the new face artwork supplies the eyes.
-  // The existing audio-driven mouth renderer remains active.
+  // Suppress the old app.js eyeball layer. The current master artwork supplies the face.
   const ctx=canvas.getContext("2d");
   if(ctx&&!ctx.__echoEyeGuardInstalled){
     const originalDrawImage=ctx.drawImage.bind(ctx);
@@ -166,7 +152,7 @@
   }
 
   function resizeMonitor(){
-    if(!monitorCanvas)return;
+    if(!monitorCanvas||!mctx)return;
     const r=monitorCanvas.getBoundingClientRect();
     const d=Math.min(window.devicePixelRatio||1,2);
     monitorCanvas.width=Math.max(1,Math.round(r.width*d));
@@ -178,15 +164,6 @@
     const r=monitorCanvas.getBoundingClientRect();
     const w=r.width,h=r.height,cx=w/2,cy=h/2,radius=Math.min(w,h)*.43;
     mctx.clearRect(0,0,w,h);
-    mctx.save();
-    mctx.beginPath();mctx.arc(cx,cy,radius,0,Math.PI*2);mctx.clip();
-    if(monitorImg.complete&&monitorImg.naturalWidth){
-      const size=radius*2.12;
-      const drift=Math.sin(t*.00035)*radius*.06;
-      mctx.globalAlpha=.95;
-      mctx.drawImage(monitorImg,cx-size/2+drift,cy-size/2,size,size);
-    }
-    mctx.restore();
     mctx.save();
     mctx.strokeStyle="rgba(38,231,255,.52)";mctx.lineWidth=1;
     for(let i=1;i<5;i++){const rx=radius*(i/5);mctx.beginPath();mctx.ellipse(cx,cy,rx,radius,0,0,Math.PI*2);mctx.stroke();}
@@ -205,7 +182,6 @@
   }
 
   window.addEventListener("resize",()=>{resizeLayer(horizon);resizeMonitor();});
-  earth.style.animationDuration="180s";
   resizeLayer(horizon);resizeMonitor();
   requestAnimationFrame(frame);
 })();
