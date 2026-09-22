@@ -10,7 +10,7 @@
   const canvas=document.querySelector("#mouth-visualizer");
   if(!stage||!art||!canvas)return;
 
-  art.src="assets/echo-frame-02.png";
+  art.src="https://raw.githubusercontent.com/iexistithinkok/Echo/main/assets/echo-frame-02.png?v=1";
   art.alt="ECHO neutral wireframe face";
   art.classList.add("echo-face-layer");
 
