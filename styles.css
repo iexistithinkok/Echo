@@ -14,8 +14,8 @@ h1 span{color:var(--cyan);text-shadow:0 0 18px var(--cyan)}
 .art-panel{min-height:680px}
 .face-stage{position:absolute;inset:0;display:block;overflow:hidden;isolation:isolate;background:#000}
 #mouth-visualizer,#echo-art,#eye-visualizer{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
-#mouth-visualizer{z-index:1;background:transparent}
-#echo-art{z-index:2;max-width:none;object-fit:contain;object-position:center;visibility:visible;opacity:1;mix-blend-mode:screen}
+#mouth-visualizer{z-index:3;background:transparent;mix-blend-mode:normal}
+#echo-art{z-index:2;max-width:none;object-fit:contain;object-position:center;visibility:visible;opacity:1}
 #eye-visualizer{z-index:4;background:transparent}
 .environment-label{position:absolute;left:18px;top:16px;z-index:10;pointer-events:none;color:rgba(38,231,255,.78);font-size:10px;letter-spacing:.14em;text-shadow:0 0 8px rgba(38,231,255,.45);white-space:nowrap}
 .scanline{position:absolute;inset:0;z-index:7;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0,transparent 4px,rgba(38,231,255,.045) 5px,transparent 6px)}
