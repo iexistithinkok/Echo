@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#02060d">
   <meta name="description" content="ECHO — Global Emergency Transmission Interface">
   <title>ECHO :)> — Global Transmission</title>
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
   <main class="echo-shell">
@@ -18,17 +18,18 @@
     <section class="interface">
       <div class="art-panel">
         <div class="face-stage">
-          <div class="environment-label">ENVIRONMENTAL COMPUTATIONAL HARMONY OPTIMIZER</div>
+          <div class="echo-face-compositor" id="echo-face-compositor" aria-label="ECHO face compositor">
+            <img class="echo-face-layer echo-face-base" id="echo-face-base" src="assets/echo-face-base.png?v=1" alt="" width="1664" height="936" draggable="false">
+            <img class="echo-face-layer echo-eye-left" id="echo-eye-left" src="assets/echo-eye-left.png?v=1" alt="" width="1664" height="936" draggable="false">
+            <img class="echo-face-layer echo-eye-right" id="echo-eye-right" src="assets/echo-eye-right.png?v=1" alt="" width="1664" height="936" draggable="false">
+            <img class="echo-face-layer echo-eyelid-left" id="echo-eyelid-left" src="assets/echo-eyelid-left.png?v=1" alt="" width="1664" height="936" draggable="false">
+            <img class="echo-face-layer echo-eyelid-right" id="echo-eyelid-right" src="assets/echo-eyelid-right.png?v=1" alt="" width="1664" height="936" draggable="false">
+            <img class="echo-face-layer echo-mouth" id="echo-mouth" src="assets/echo-mouth.png?v=1" alt="" width="1664" height="936" draggable="false">
+          </div>
 
-          <!-- Transparent audio visualization sits BEHIND the face artwork. -->
           <canvas id="mouth-visualizer" aria-hidden="true"></canvas>
 
-          <!-- The face artwork sits above the mouth visualization. Screen blending lets the
-               dark portions of the artwork remain transparent-looking so the mouth can show through. -->
-          <img id="echo-art" src="assets/echo-frame-02.png?v=14" alt="ECHO neutral wireframe face" width="1664" height="936">
-
-          <!-- Eye tracking is intentionally above the artwork. -->
-          <canvas id="eye-visualizer" aria-hidden="true"></canvas>
+          <div class="environment-label">ENVIRONMENTAL COMPUTATIONAL HARMONY OPTIMIZER</div>
 
           <div class="scanline" aria-hidden="true"></div>
 
@@ -84,6 +85,6 @@
   </main>
 
   <audio id="audio" preload="metadata"></audio>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
