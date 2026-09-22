@@ -35,17 +35,17 @@ const trailerMode=document.querySelector("#trailer-mode");
 const DEBUG_FACE=false;
 
 const FACE={width:1664,height:936,eyes:[
-  // These are the centers of the existing iris/pupil details already drawn in the PNG.
-  // Only a tiny highlight is overlaid; the eye itself is never redrawn.
+  // The PNG already contains the eyes, iris and pupil. These values target
+  // the visible pupil centers; only a tiny catchlight is animated.
   {
-    rest:{x:633,y:261},
-    socket:{cx:633,cy:261,rx:36,ry:25},
-    highlightRadius:3
+    rest:{x:630,y:264},
+    socket:{cx:630,cy:264,rx:34,ry:24},
+    highlightRadius:2.4
   },
   {
-    rest:{x:959,y:268},
-    socket:{cx:959,cy:268,rx:36,ry:25},
-    highlightRadius:3
+    rest:{x:960,y:268},
+    socket:{cx:960,cy:268,rx:34,ry:24},
+    highlightRadius:2.4
   }
 ],mouth:{
   cx:824,
@@ -304,7 +304,7 @@ function updateEyeTarget(time){
       const distance=Math.hypot(dx,dy);
 
       // Vector tracking: direction first, then a fixed maximum travel.
-      const maxTravel=8;
+      const maxTravel=6;
       const travel=Math.min(maxTravel,distance);
       const nx=distance>0.001?dx/distance:0;
       const ny=distance>0.001?dy/distance:0;
@@ -323,7 +323,7 @@ function updateEyeTarget(time){
     nextEyeMove=time+2200+Math.random()*3200;
     FACE.eyes.forEach((eye,i)=>{
       const angle=Math.random()*Math.PI*2;
-      const travel=4+Math.random()*7;
+      const travel=2+Math.random()*4;
       const clamped=clampPupilToSocket(
         eye.rest.x+Math.cos(angle)*travel,
         eye.rest.y+Math.sin(angle)*travel,
@@ -351,10 +351,11 @@ function drawEye(eye,index,closure){
   // The PNG already contains the eyeball, iris and pupil.
   // Production mode draws only a tiny moving catchlight.
   if(closure<1){
+    // A tiny catchlight is the only eye overlay. The PNG supplies the actual iris/pupil.
     ctx.globalCompositeOperation="screen";
-    ctx.fillStyle="rgba(220,250,255,.38)";
+    ctx.fillStyle="rgba(220,250,255,.24)";
     ctx.beginPath();
-    ctx.arc(ix-r*.25,iy-r*.25,r,0,Math.PI*2);
+    ctx.arc(ix-r*.22,iy-r*.22,r,0,Math.PI*2);
     ctx.fill();
   }
 
