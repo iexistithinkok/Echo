@@ -10,7 +10,7 @@
   const canvas=document.querySelector("#mouth-visualizer");
   if(!stage||!art||!canvas)return;
 
-  art.src="https://raw.githubusercontent.com/iexistithinkok/Echo/main/assets/echo-frame-02.png?v=1";
+  art.src="assets/echo-frame-02.png?v=3";
   art.alt="ECHO neutral wireframe face";
   art.classList.add("echo-face-layer");
 
@@ -47,17 +47,6 @@
   const monitorCanvas=document.querySelector("#planet-monitor-canvas");
   const mctx=monitorCanvas&&monitorCanvas.getContext("2d");
 
-  // Suppress the old app.js eyeball layer. The current master artwork supplies the face.
-  const ctx=canvas.getContext("2d");
-  if(ctx&&!ctx.__echoEyeGuardInstalled){
-    const originalDrawImage=ctx.drawImage.bind(ctx);
-    ctx.drawImage=function(image,...args){
-      const src=image&&(image.currentSrc||image.src||"");
-      if(/(?:^|\/)(?:eyeball|eyelids)\.png(?:\?|$)/i.test(src))return;
-      return originalDrawImage(image,...args);
-    };
-    ctx.__echoEyeGuardInstalled=true;
-  }
 
   const clock=document.querySelector("#clock");
   const systemStatus=document.querySelector("#system-status");
