@@ -48,10 +48,11 @@ const FACE={width:1664,height:936,eyes:[
     highlightRadius:2.4
   }
 ],mouth:{
-  cx:824,
-  cy:629,
-  openingWidth:260,
-  openingHeight:105
+  // Calibrated from the visible black mouth aperture in the rendered 1664x936 artwork.
+  cx:835,
+  cy:640,
+  openingWidth:244,
+  openingHeight:120
 }};
 
 let audioContext=null,analyser=null,sourceNode=null,frequencyData=null,waveformData=null;
@@ -85,25 +86,6 @@ function resizeCanvas(){
     c.style.width=`${r.width}px`;
     c.style.height=`${r.height}px`;
   }
-
-  // Keep the mouth window tied to the 1664x936 artwork coordinate system even
-  // when contain-scaling introduces letterboxing.
-  const scale=Math.min(r.width/FACE.width,r.height/FACE.height);
-  const ox=(r.width-FACE.width*scale)/2;
-  const oy=(r.height-FACE.height*scale)/2;
-  const mouthW=FACE.mouth.openingWidth*scale;
-  const mouthH=FACE.mouth.openingHeight*scale;
-  const mouthX=ox+FACE.mouth.cx*scale;
-  const mouthY=oy+FACE.mouth.cy*scale;
-  const mouthTop=mouthY-mouthH/2;
-  const mouthLeft=mouthX-mouthW/2;
-  const clipTop=Math.max(0,mouthTop);
-  const clipRight=Math.max(0,r.width-(mouthLeft+mouthW));
-  const clipBottom=Math.max(0,r.height-(mouthTop+mouthH));
-  const clipLeft=Math.max(0,mouthLeft);
-  const mouthClip=`inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)`;
-  mouthCanvas.style.clipPath=mouthClip;
-  mouthCanvas.style.webkitClipPath=mouthClip;
 
   mouthCtx.setTransform(d,0,0,d,0,0);
   ctx.setTransform(d,0,0,d,0,0);
@@ -332,34 +314,67 @@ function drawEyes(){
 }
 
 function drawSpeechMouth(level){
-  const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy),s=p.s;
-  const width=FACE.mouth.openingWidth*s;
-  const height=FACE.mouth.openingHeight*s;
-  const amplitude=(3+15*level)*s;
+  // No idle waveform: the PNG's mouth remains untouched until there is real audio.
+  if(audio.paused||!waveformData||level<0.01)return;
 
-  // Transparent RGBA waveform. The canvas itself is clipped in resizeCanvas()
-  // to the artwork's actual mouth opening; no circular shape is drawn.
+  const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy);
+  const s=p.s;
+  const width=FACE.mouth.openingWidth*s;
+  const amplitude=(1.5+9*level)*s;
+
   mouthCtx.save();
   mouthCtx.globalCompositeOperation="source-over";
 
+  // Custom mouth aperture traced from the visible opening in echo-frame-02.png.
+  // This is a local invisible mask; the path itself is never painted.
+  const a=imagePoint(712,622);
+  const b=imagePoint(738,598);
+  const c=imagePoint(783,584);
+  const d=imagePoint(835,584);
+  const e=imagePoint(887,584);
+  const f=imagePoint(933,598);
+  const g=imagePoint(956,622);
+  const h=imagePoint(940,656);
+  const j=imagePoint(901,688);
+  const k=imagePoint(835,704);
+  const l=imagePoint(769,688);
+  const m=imagePoint(730,657);
+
+  const path=new Path2D();
+  path.moveTo(a.x,a.y);
+  path.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
+  path.bezierCurveTo(e.x,e.y,f.x,f.y,g.x,g.y);
+  path.bezierCurveTo(h.x,h.y,j.x,j.y,k.x,k.y);
+  path.bezierCurveTo(l.x,l.y,m.x,m.y,a.x,a.y);
+  path.closePath();
+
+  mouthCtx.clip(path);
+
   const samples=64;
-  const span=width*.76;
-  mouthCtx.strokeStyle=`rgba(92,239,255,${.20+level*.60})`;
-  mouthCtx.lineWidth=Math.max(.7,1.0*s);
+  const span=width*.82;
+  mouthCtx.strokeStyle=`rgba(92,239,255,${.16+level*.46})`;
+  mouthCtx.lineWidth=Math.max(.7,.9*s);
   mouthCtx.beginPath();
 
   for(let i=0;i<samples;i++){
     const x=p.x-span/2+span*i/(samples-1);
-    let wave=0;
-    if(waveformData){
-      const idx=Math.floor(i*(waveformData.length-1)/(samples-1));
-      wave=(waveformData[idx]-128)/128;
-    }
-    const y=p.y+wave*amplitude*(.22+.78*level);
+    const idx=Math.floor(i*(waveformData.length-1)/(samples-1));
+    const wave=(waveformData[idx]-128)/128;
+    const y=p.y+wave*amplitude;
     if(i===0)mouthCtx.moveTo(x,y);
     else mouthCtx.lineTo(x,y);
   }
+
   mouthCtx.stroke();
+
+  if(DEBUG_FACE){
+    mouthCtx.save();
+    mouthCtx.globalCompositeOperation="source-over";
+    mouthCtx.strokeStyle="rgba(255,0,255,.75)";
+    mouthCtx.lineWidth=1;
+    mouthCtx.stroke(path);
+    mouthCtx.restore();
+  }
 
   mouthCtx.restore();
 }
