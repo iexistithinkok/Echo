@@ -32,26 +32,26 @@ const upload=document.querySelector("#audio-upload");
 const uploadStatus=document.querySelector("#upload-status");
 const trailerMode=document.querySelector("#trailer-mode");
 
+const DEBUG_FACE=false;
+
 const FACE={width:1664,height:936,eyes:[
-  // Resting iris centers are taken from the visible iris positions in echo-frame-02.png.
-  // Socket geometry is separate so tracking can be clamped to the actual eye opening.
+  // These are the centers of the existing iris/pupil details already drawn in the PNG.
+  // Only a tiny highlight is overlaid; the eye itself is never redrawn.
   {
-    rest:{x:621,y:278},
-    socket:{cx:657,cy:279,rx:86,ry:50},
-    pupilRadius:5.5,
-    irisRadius:15
+    rest:{x:633,y:261},
+    socket:{cx:633,cy:261,rx:36,ry:25},
+    highlightRadius:3
   },
   {
-    rest:{x:958,y:273},
-    socket:{cx:1005,cy:279,rx:86,ry:50},
-    pupilRadius:5.5,
-    irisRadius:15
+    rest:{x:959,y:268},
+    socket:{cx:959,cy:268,rx:36,ry:25},
+    highlightRadius:3
   }
 ],mouth:{
-  cx:835,
+  cx:824,
   cy:629,
-  openingWidth:285,
-  openingHeight:120
+  openingWidth:260,
+  openingHeight:105
 }};
 
 let audioContext=null,analyser=null,sourceNode=null,frequencyData=null,waveformData=null;
@@ -85,6 +85,20 @@ function resizeCanvas(){
     c.style.width=`${r.width}px`;
     c.style.height=`${r.height}px`;
   }
+
+  // Keep the mouth window tied to the 1664x936 artwork coordinate system even
+  // when contain-scaling introduces letterboxing.
+  const scale=Math.min(r.width/FACE.width,r.height/FACE.height);
+  const ox=(r.width-FACE.width*scale)/2;
+  const oy=(r.height-FACE.height*scale)/2;
+  const mouthRx=(FACE.mouth.openingWidth*scale)/2;
+  const mouthRy=(FACE.mouth.openingHeight*scale)/2;
+  const mouthX=ox+FACE.mouth.cx*scale;
+  const mouthY=oy+FACE.mouth.cy*scale;
+  const mouthClip=`ellipse(${mouthRx}px ${mouthRy}px at ${mouthX}px ${mouthY}px)`;
+  mouthCanvas.style.clipPath=mouthClip;
+  mouthCanvas.style.webkitClipPath=mouthClip;
+
   mouthCtx.setTransform(d,0,0,d,0,0);
   ctx.setTransform(d,0,0,d,0,0);
 }
@@ -108,8 +122,9 @@ function pointerArtworkPoint(clientX,clientY){
 }
 
 function clampPupilToSocket(x,y,eye){
-  const rx=Math.max(1,eye.socket.rx-eye.irisRadius);
-  const ry=Math.max(1,eye.socket.ry-eye.irisRadius);
+  const radius=eye.highlightRadius;
+  const rx=Math.max(1,eye.socket.rx-radius);
+  const ry=Math.max(1,eye.socket.ry-radius);
   const nx=(x-eye.socket.cx)/rx;
   const ny=(y-eye.socket.cy)/ry;
   const d=Math.hypot(nx,ny);
@@ -289,7 +304,7 @@ function updateEyeTarget(time){
       const distance=Math.hypot(dx,dy);
 
       // Vector tracking: direction first, then a fixed maximum travel.
-      const maxTravel=28;
+      const maxTravel=8;
       const travel=Math.min(maxTravel,distance);
       const nx=distance>0.001?dx/distance:0;
       const ny=distance>0.001?dy/distance:0;
@@ -324,46 +339,30 @@ function drawEye(eye,index,closure){
   const rest=imagePoint(eye.rest.x,eye.rest.y);
   const socket=imagePoint(eye.socket.cx,eye.socket.cy);
   const s=rest.s;
-  const irisR=eye.irisRadius*s;
-  const pupilR=eye.pupilRadius*s;
+  const r=eye.highlightRadius*s;
   const ix=rest.x+eyeX[index]*s;
   const iy=rest.y+eyeY[index]*s;
 
   ctx.save();
   ctx.beginPath();
-  ctx.ellipse(
-    socket.x,
-    socket.y,
-    eye.socket.rx*s,
-    eye.socket.ry*s,
-    0,0,Math.PI*2
-  );
+  ctx.ellipse(socket.x,socket.y,eye.socket.rx*s,eye.socket.ry*s,0,0,Math.PI*2);
   ctx.clip();
 
-  // Clean tracking iris: no glow, bloom, gradient, or oversized dot.
-  ctx.globalCompositeOperation="source-over";
-  ctx.strokeStyle="#26e7ff";
-  ctx.lineWidth=Math.max(.8,.9*s);
-  ctx.beginPath();
-  ctx.arc(ix,iy,irisR,0,Math.PI*2);
-  ctx.stroke();
+  // The PNG already contains the eyeball, iris and pupil.
+  // Production mode draws only a tiny moving catchlight.
+  if(closure<1){
+    ctx.globalCompositeOperation="screen";
+    ctx.fillStyle="rgba(220,250,255,.38)";
+    ctx.beginPath();
+    ctx.arc(ix-r*.25,iy-r*.25,r,0,Math.PI*2);
+    ctx.fill();
+  }
 
-  ctx.fillStyle="#26e7ff";
-  ctx.beginPath();
-  ctx.arc(ix,iy,pupilR,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle="#02060d";
-  ctx.beginPath();
-  ctx.arc(ix,iy,pupilR*.48,0,Math.PI*2);
-  ctx.fill();
-
-  if(closure>0){
-    const cover=eye.socket.ry*s*closure;
-    const w=eye.socket.rx*2*s;
-    ctx.fillStyle="rgba(2,6,13,.96)";
-    ctx.fillRect(socket.x-w/2,socket.y-eye.socket.ry*s,w,cover);
-    ctx.fillRect(socket.x-w/2,socket.y+eye.socket.ry*s-cover,w,cover);
+  if(DEBUG_FACE){
+    ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle="rgba(255,0,255,.65)";
+    ctx.lineWidth=1;
+    ctx.stroke();
   }
 
   ctx.restore();
@@ -384,37 +383,39 @@ function drawSpeechMouth(level){
   const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy),s=p.s;
   const width=FACE.mouth.openingWidth*s;
   const height=FACE.mouth.openingHeight*s;
-  const amplitude=(2+13*level)*s;
+  const amplitude=(3+15*level)*s;
 
-  /* This canvas is RGBA with a transparent background.
-     It lives behind the face PNG, so the waveform is only visible
-     where the artwork's dark mouth opening lets it show through. */
+  // Transparent RGBA waveform. The canvas itself is clipped in resizeCanvas()
+  // to the artwork's actual mouth opening; no circular shape is drawn.
   mouthCtx.save();
-  mouthCtx.globalCompositeOperation="screen";
-  mouthCtx.beginPath();
-  mouthCtx.ellipse(p.x,p.y,width*.5,height*.5,0,0,Math.PI*2);
-  mouthCtx.clip();
+  mouthCtx.globalCompositeOperation="source-over";
 
-  const bars=29;
-  const span=width*.78;
-  mouthCtx.strokeStyle=`rgba(92,239,255,${.24+level*.62})`;
+  const samples=64;
+  const span=width*.76;
+  mouthCtx.strokeStyle=`rgba(92,239,255,${.20+level*.60})`;
   mouthCtx.lineWidth=Math.max(.7,1.0*s);
-
   mouthCtx.beginPath();
-  for(let i=0;i<bars;i++){
-    const x=p.x-span/2+span*i/(bars-1);
+
+  for(let i=0;i<samples;i++){
+    const x=p.x-span/2+span*i/(samples-1);
     let wave=0;
     if(waveformData){
-      const idx=Math.floor(i*(waveformData.length-1)/(bars-1));
+      const idx=Math.floor(i*(waveformData.length-1)/(samples-1));
       wave=(waveformData[idx]-128)/128;
     }
-    const local=(.18+.82*level)*(.28+Math.abs(wave)*.72);
-    const y1=p.y-amplitude*local;
-    const y2=p.y+amplitude*local;
-    mouthCtx.moveTo(x,y1);
-    mouthCtx.lineTo(x,y2);
+    const y=p.y+wave*amplitude*(.22+.78*level);
+    if(i===0)mouthCtx.moveTo(x,y);
+    else mouthCtx.lineTo(x,y);
   }
   mouthCtx.stroke();
+
+  if(DEBUG_FACE){
+    mouthCtx.strokeStyle="rgba(255,0,255,.65)";
+    mouthCtx.lineWidth=1;
+    mouthCtx.beginPath();
+    mouthCtx.ellipse(p.x,p.y,width*.5,height*.5,0,0,Math.PI*2);
+    mouthCtx.stroke();
+  }
 
   mouthCtx.restore();
 }
