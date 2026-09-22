@@ -97,18 +97,17 @@ function resizeFaceCompositor(){
   faceOffsetX=(r.width-width)/2;
   faceOffsetY=(r.height-height)/2;
 
-  compositor.style.left="${faceOffsetX}px";
-  compositor.style.top="${faceOffsetY}px";
-  compositor.style.width="${width}px";
-  compositor.style.height="${height}px";
+  compositor.style.left=faceOffsetX+"px";
+  compositor.style.top=faceOffsetY+"px";
+  compositor.style.width=width+"px";
+  compositor.style.height=height+"px";
 
   const d=Math.min(window.devicePixelRatio||1,2);
-  mouthCanvas.style.left="${faceOffsetX}px";
-  mouthCanvas.style.top="${faceOffsetY}px";
-  mouthCanvas.style.width="${width}px";
-  mouthCanvas.style.height="${height}px";
+  mouthCanvas.style.left=faceOffsetX+"px";
+  mouthCanvas.style.top=faceOffsetY+"px";
+  mouthCanvas.style.width=width+"px";
+  mouthCanvas.style.height=height+"px";
   mouthCanvas.width=Math.max(1,Math.round(FACE.width*d));
-  mouthCanvas.height=Math.max(1,Math.round(FACE.height*d));
   mouthCtx.setTransform(d,0,0,d,0,0);
 }
 
