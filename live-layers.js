@@ -10,7 +10,8 @@
   const canvas=document.querySelector("#mouth-visualizer");
   if(!stage||!art||!canvas)return;
 
-  art.src="assets/echo-frame-02.png?v=3";
+  // The HTML owns the artwork source. Do not replace/reload it here;
+  // reassigning the image can create a transient load/error race.
   art.alt="ECHO neutral wireframe face";
   art.classList.add("echo-face-layer");
 
