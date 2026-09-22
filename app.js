@@ -7,11 +7,14 @@ const AUDIO_EXTENSIONS=["mp3","m4a","wav","ogg","aac","flac"];
 const audio=document.querySelector("#audio");
 const mouthCanvas=document.querySelector("#mouth-visualizer");
 const mouthCtx=mouthCanvas.getContext("2d",{alpha:true});
-const eyeCanvas=document.querySelector("#eye-visualizer");
-const ctx=eyeCanvas.getContext("2d",{alpha:true});
 const faceStage=document.querySelector(".face-stage");
-const art=document.querySelector("#echo-art");
-const fallback=document.querySelector(".fallback-face");
+const compositor=document.querySelector("#echo-face-compositor");
+const faceBase=document.querySelector("#echo-face-base");
+const eyeLeft=document.querySelector("#echo-eye-left");
+const eyeRight=document.querySelector("#echo-eye-right");
+const eyelidLeft=document.querySelector("#echo-eyelid-left");
+const eyelidRight=document.querySelector("#echo-eyelid-right");
+const mouthLayer=document.querySelector("#echo-mouth");
 const play=document.querySelector("#play");
 const stop=document.querySelector("#stop");
 const seek=document.querySelector("#seek");
@@ -34,26 +37,30 @@ const trailerMode=document.querySelector("#trailer-mode");
 
 const DEBUG_FACE=false;
 
-const FACE={width:1664,height:936,eyes:[
-  // The PNG already contains the eyes, iris and pupil. These values target
-  // the visible pupil centers; only a tiny catchlight is animated.
-  {
-    rest:{x:630,y:264},
-    socket:{cx:630,cy:264,rx:34,ry:24},
-    highlightRadius:2.4
-  },
-  {
-    rest:{x:960,y:268},
-    socket:{cx:960,cy:268,rx:34,ry:24},
-    highlightRadius:2.4
+const FACE={
+  width:1664,
+  height:936,
+  eyes:[
+    {cx:635,cy:514},
+    {cx:1049,cy:508}
+  ],
+  mouth:{
+    cx:842,
+    cy:703,
+    bbox:{x:666,y:615,w:353,h:177}
   }
-],mouth:{
-  // Calibrated from the visible black mouth aperture in the rendered 1664x936 artwork.
-  cx:835,
-  cy:640,
-  openingWidth:244,
-  openingHeight:120
-}};
+};
+
+const GAZE={maxX:12,maxY:6,saturation:500};
+
+const FACE_ASSETS=[
+  ["BASE",faceBase,"assets/echo-face-base.png"],
+  ["EYE-LEFT",eyeLeft,"assets/echo-eye-left.png"],
+  ["EYE-RIGHT",eyeRight,"assets/echo-eye-right.png"],
+  ["EYELID-LEFT",eyelidLeft,"assets/echo-eyelid-left.png"],
+  ["EYELID-RIGHT",eyelidRight,"assets/echo-eyelid-right.png"],
+  ["MOUTH",mouthLayer,"assets/echo-mouth.png"]
+];
 
 let audioContext=null,analyser=null,sourceNode=null,frequencyData=null,waveformData=null;
 let animationFrame=null,tracks=[],activeTrack=-1,localObjectUrl=null;
@@ -78,68 +85,56 @@ function formatTime(seconds){
   return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
 }
 
-function resizeCanvas(){
-  const r=faceStage.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
-  for(const c of [mouthCanvas,eyeCanvas]){
-    c.width=Math.max(1,Math.round(r.width*d));
-    c.height=Math.max(1,Math.round(r.height*d));
-    c.style.width=`${r.width}px`;
-    c.style.height=`${r.height}px`;
-  }
+let faceScale=1;
+let faceOffsetX=0;
+let faceOffsetY=0;
 
+function resizeFaceCompositor(){
+  const r=faceStage.getBoundingClientRect();
+  faceScale=Math.min(r.width/FACE.width,r.height/FACE.height);
+  const width=FACE.width*faceScale;
+  const height=FACE.height*faceScale;
+  faceOffsetX=(r.width-width)/2;
+  faceOffsetY=(r.height-height)/2;
+
+  compositor.style.left="${faceOffsetX}px";
+  compositor.style.top="${faceOffsetY}px";
+  compositor.style.width="${width}px";
+  compositor.style.height="${height}px";
+
+  const d=Math.min(window.devicePixelRatio||1,2);
+  mouthCanvas.style.left="${faceOffsetX}px";
+  mouthCanvas.style.top="${faceOffsetY}px";
+  mouthCanvas.style.width="${width}px";
+  mouthCanvas.style.height="${height}px";
+  mouthCanvas.width=Math.max(1,Math.round(FACE.width*d));
+  mouthCanvas.height=Math.max(1,Math.round(FACE.height*d));
   mouthCtx.setTransform(d,0,0,d,0,0);
-  ctx.setTransform(d,0,0,d,0,0);
-}
-
-function imagePoint(px,py){
-  const cw=faceStage.clientWidth,ch=faceStage.clientHeight;
-  const scale=Math.min(cw/FACE.width,ch/FACE.height);
-  return{x:(cw-FACE.width*scale)/2+px*scale,y:(ch-FACE.height*scale)/2+py*scale,s:scale};
 }
 
 function pointerArtworkPoint(clientX,clientY){
   const r=faceStage.getBoundingClientRect();
-  const cw=r.width,ch=r.height;
-  const scale=Math.min(cw/FACE.width,ch/FACE.height);
-  const ox=(cw-FACE.width*scale)/2;
-  const oy=(ch-FACE.height*scale)/2;
   return{
-    x:(clientX-r.left-ox)/scale,
-    y:(clientY-r.top-oy)/scale
+    x:(clientX-r.left-faceOffsetX)/faceScale,
+    y:(clientY-r.top-faceOffsetY)/faceScale
   };
 }
 
-function clampPupilToSocket(x,y,eye){
-  const radius=eye.highlightRadius;
-  const rx=Math.max(1,eye.socket.rx-radius);
-  const ry=Math.max(1,eye.socket.ry-radius);
-  const nx=(x-eye.socket.cx)/rx;
-  const ny=(y-eye.socket.cy)/ry;
-  const d=Math.hypot(nx,ny);
-  if(d<=1)return{x,y};
-  return{
-    x:eye.socket.cx+(nx/d)*rx,
-    y:eye.socket.cy+(ny/d)*ry
-  };
-}
-
-function setImageState(ok){
-  if(!art)return;
-  art.classList.add("echo-face-layer");
-  art.style.display="block";
-  art.style.visibility="visible";
-  if(fallback)fallback.classList.remove("visible");
-  if(!ok)console.warn("ECHO artwork did not report a successful load; leaving the image layer visible.");
-}
-
-function verifyArtwork(){
-  if(!art)return;
-  if(art.complete&&art.naturalWidth>0){
-    setImageState(true);
-    return;
-  }
-  art.addEventListener("load",()=>setImageState(true),{once:true});
-  art.addEventListener("error",()=>console.warn("ECHO artwork load error:",art.currentSrc||art.src),{once:true});
+function verifyFaceAssets(){
+  FACE_ASSETS.forEach(([name,img,path])=>{
+    const verify=()=>{
+      if(img.naturalWidth!==FACE.width||img.naturalHeight!==FACE.height){
+        console.error("[ECHO FACE] "+name+" has unexpected dimensions: "+img.naturalWidth+"x"+img.naturalHeight+"; expected 1664x936.");
+      }
+    };
+    if(img.complete&&img.naturalWidth>0){
+      verify();
+    }else{
+      img.addEventListener("load",verify,{once:true});
+      img.addEventListener("error",()=>console.error("[ECHO FACE] Failed to load "+path),{once:true});
+    }
+  });
+  console.info("[ECHO FACE] BASE: echo-face-base.png | EYES: echo-eye-left.png + echo-eye-right.png | EYELIDS: echo-eyelid-left.png + echo-eyelid-right.png | MOUTH: echo-mouth.png | ARCHITECTURE: FULL-CANVAS COMPOSITOR");
 }
 
 function prettyName(path){
@@ -282,109 +277,100 @@ function updateBlink(time){
   }
 }
 
-function updateEyeTarget(time){
-  if(pointerActive){
-    const pointer=pointerArtworkPoint(pointerClientX,pointerClientY);
-
-    FACE.eyes.forEach((eye,i)=>{
-      const dx=pointer.x-eye.rest.x;
-      const dy=pointer.y-eye.rest.y;
-      const distance=Math.hypot(dx,dy);
-
-      // Tracking calculation is retained for future use, but the production
-      // eye canvas is intentionally invisible for this clean baseline.
-      const maxTravel=6;
-      const travel=Math.min(maxTravel,distance);
-      const nx=distance>0.001?dx/distance:0;
-      const ny=distance>0.001?dy/distance:0;
-
-      eyeTargetX[i]=nx*travel;
-      eyeTargetY[i]=ny*travel;
-    });
-    return;
-  }
-
-  // Autonomous eye motion intentionally disabled.
+function clamp(value,min,max){
+  return Math.max(min,Math.min(max,value));
 }
 
-function drawEyes(){
-  // Intentionally render zero visible pixels.
-  // Echo's eyes are supplied entirely by echo-frame-02.png.
-  ctx.clearRect(0,0,eyeCanvas.clientWidth,eyeCanvas.clientHeight);
+function updateEyeTarget(){
+  const pointer=pointerActive?pointerArtworkPoint(pointerClientX,pointerClientY):null;
+  FACE.eyes.forEach((eye,i)=>{
+    if(!pointer||!faceScale){
+      eyeTargetX[i]=0;
+      eyeTargetY[i]=0;
+      return;
+    }
+
+    const dx=pointer.x-eye.cx;
+    const dy=pointer.y-eye.cy;
+    const distance=Math.hypot(dx,dy);
+    const strength=Math.min(1,distance/GAZE.saturation);
+    const nx=distance>0.001?dx/distance:0;
+    const ny=distance>0.001?dy/distance:0;
+    const lag=i===1?0.98:1;
+    eyeTargetX[i]=clamp(nx*GAZE.maxX*strength*lag,-GAZE.maxX,GAZE.maxX);
+    eyeTargetY[i]=clamp(ny*GAZE.maxY*strength*lag,-GAZE.maxY,GAZE.maxY);
+  });
+}
+
+function applyEyeMotion(){
+  eyeX[0]+=(eyeTargetX[0]-eyeX[0])*0.10;
+  eyeY[0]+=(eyeTargetY[0]-eyeY[0])*0.10;
+  eyeX[1]+=(eyeTargetX[1]-eyeX[1])*0.095;
+  eyeY[1]+=(eyeTargetY[1]-eyeY[1])*0.095;
+
+  eyeLeft.style.transform="translate3d("+(eyeX[0]*faceScale)+"px,"+(eyeY[0]*faceScale)+"px,0)";
+  eyeRight.style.transform="translate3d("+(eyeX[1]*faceScale)+"px,"+(eyeY[1]*faceScale)+"px,0)";
+}
+
+function applyBlink(){
+  const visible=blinkAmount;
+  const clip="inset("+((1-visible)*100)+"% 0 0 0)";
+  eyelidLeft.style.opacity=String(visible);
+  eyelidRight.style.opacity=String(visible);
+  eyelidLeft.style.clipPath=clip;
+  eyelidLeft.style.webkitClipPath=clip;
+  eyelidRight.style.clipPath=clip;
+  eyelidRight.style.webkitClipPath=clip;
+}
+
+function applyMouthMotion(){
+  const scaleY=1+Math.min(0.055,mouthLevel*0.055);
+  const y=speechPulse*1.15*faceScale;
+  mouthLayer.style.transform="translate3d(0,"+y+"px,0) scaleY("+scaleY+")";
 }
 
 function drawSpeechMouth(level){
-  // No idle waveform: the PNG's mouth remains untouched until there is real audio.
   if(audio.paused||!waveformData||level<0.01)return;
 
-  const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy);
-  const s=p.s;
-  const width=FACE.mouth.openingWidth*s;
-  const amplitude=(1.5+9*level)*s;
+  const {cx,cy,bbox}=FACE.mouth;
+  const amplitude=1.5+8*level;
 
   mouthCtx.save();
   mouthCtx.globalCompositeOperation="source-over";
 
-  // Custom mouth aperture traced from the visible opening in echo-frame-02.png.
-  // This is a local invisible mask; the path itself is never painted.
-  const a=imagePoint(712,622);
-  const b=imagePoint(738,598);
-  const c=imagePoint(783,584);
-  const d=imagePoint(835,584);
-  const e=imagePoint(887,584);
-  const f=imagePoint(933,598);
-  const g=imagePoint(956,622);
-  const h=imagePoint(940,656);
-  const j=imagePoint(901,688);
-  const k=imagePoint(835,704);
-  const l=imagePoint(769,688);
-  const m=imagePoint(730,657);
-
-  const path=new Path2D();
-  path.moveTo(a.x,a.y);
-  path.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);
-  path.bezierCurveTo(e.x,e.y,f.x,f.y,g.x,g.y);
-  path.bezierCurveTo(h.x,h.y,j.x,j.y,k.x,k.y);
-  path.bezierCurveTo(l.x,l.y,m.x,m.y,a.x,a.y);
-  path.closePath();
-
-  mouthCtx.clip(path);
+  mouthCtx.beginPath();
+  mouthCtx.roundRect(bbox.x,bbox.y,bbox.w,bbox.h,40);
+  mouthCtx.clip();
 
   const samples=64;
-  const span=width*.82;
-  mouthCtx.strokeStyle=`rgba(92,239,255,${.16+level*.46})`;
-  mouthCtx.lineWidth=Math.max(.7,.9*s);
+  const span=bbox.w*0.80;
+  mouthCtx.strokeStyle="rgba(92,239,255,"+(.12+level*.42)+")";
+  mouthCtx.lineWidth=0.9;
   mouthCtx.beginPath();
 
   for(let i=0;i<samples;i++){
-    const x=p.x-span/2+span*i/(samples-1);
+    const x=cx-span/2+span*i/(samples-1);
     const idx=Math.floor(i*(waveformData.length-1)/(samples-1));
     const wave=(waveformData[idx]-128)/128;
-    const y=p.y+wave*amplitude;
+    const y=cy+wave*amplitude;
     if(i===0)mouthCtx.moveTo(x,y);
     else mouthCtx.lineTo(x,y);
   }
 
   mouthCtx.stroke();
-
-  if(DEBUG_FACE){
-    mouthCtx.save();
-    mouthCtx.globalCompositeOperation="source-over";
-    mouthCtx.strokeStyle="rgba(255,0,255,.75)";
-    mouthCtx.lineWidth=1;
-    mouthCtx.stroke(path);
-    mouthCtx.restore();
-  }
-
   mouthCtx.restore();
 }
 
 function renderFace(time){
   const level=calculateSpeechLevel();
-  mouthCtx.clearRect(0,0,mouthCanvas.clientWidth,mouthCanvas.clientHeight);
-  ctx.clearRect(0,0,eyeCanvas.clientWidth,eyeCanvas.clientHeight);
+  mouthCtx.clearRect(0,0,FACE.width,FACE.height);
+
+  updateBlink(time);
+  updateEyeTarget();
+  applyEyeMotion();
+  applyBlink();
+  applyMouthMotion();
   drawSpeechMouth(level);
-  drawEyes();
 }
 
 function typeTransmission(lines){
@@ -465,7 +451,7 @@ upload.addEventListener("change",e=>loadLocalFile(e.target.files?.[0]));
 trailerMode.addEventListener("click",()=>{
   document.body.classList.toggle("trailer-mode");
   trailerMode.textContent=document.body.classList.contains("trailer-mode")?"EXIT TRAILER":"TRAILER MODE";
-  setTimeout(resizeCanvas,60);
+  setTimeout(resizeFaceCompositor,60);
 });
 
 audio.addEventListener("loadedmetadata",()=>duration.textContent=formatTime(audio.duration));
@@ -473,9 +459,8 @@ audio.addEventListener("play",()=>{txStatus.textContent="TRANSMITTING";status.te
 audio.addEventListener("pause",()=>{if(!audio.ended){txStatus.textContent="PAUSED";status.textContent="SYSTEM ONLINE";}});
 audio.addEventListener("ended",()=>{txStatus.textContent="COMPLETE";status.textContent="SYSTEM ONLINE";mouthLevel=0;speechPulse=0;});
 
-window.addEventListener("resize",resizeCanvas);
-resizeCanvas();
-verifyArtwork();
-nextEyeMove=performance.now()+1200;
+window.addEventListener("resize",resizeFaceCompositor);
+resizeFaceCompositor();
+verifyFaceAssets();
 discoverAudio();
 animationFrame=requestAnimationFrame(animationLoop);
