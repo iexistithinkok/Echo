@@ -13,10 +13,16 @@ h1 span{color:var(--cyan);text-shadow:0 0 18px var(--cyan)}
 .art-panel,.terminal-panel{position:relative;border:1px solid var(--line);background:var(--panel);box-shadow:0 0 35px rgba(38,231,255,.06),inset 0 0 35px rgba(36,140,255,.04);overflow:hidden}
 .art-panel{min-height:680px}
 .face-stage{position:absolute;inset:0;display:block;overflow:hidden;isolation:isolate;background:#000}
-#mouth-visualizer,#echo-art,#eye-visualizer{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
-#mouth-visualizer{z-index:3;background:transparent;mix-blend-mode:normal}
-#echo-art{z-index:2;max-width:none;object-fit:contain;object-position:center;visibility:visible;opacity:1}
-#eye-visualizer{z-index:4;background:transparent}
+.echo-face-compositor{position:absolute;left:0;top:0;width:1664px;height:936px;z-index:2;transform-origin:0 0;pointer-events:none}
+.echo-face-layer{position:absolute;inset:0;width:100%;height:100%;max-width:none;display:block;object-fit:fill;pointer-events:none;user-select:none}
+.echo-face-base{z-index:1}
+.echo-eye-left{z-index:2;will-change:transform}
+.echo-eye-right{z-index:3;will-change:transform}
+.echo-eyelid-left{z-index:4;opacity:0;will-change:opacity,clip-path}
+.echo-eyelid-right{z-index:5;opacity:0;will-change:opacity,clip-path}
+.echo-mouth{z-index:6;transform-origin:50.601% 75.107%;will-change:transform}
+#mouth-visualizer{position:absolute;left:0;top:0;width:1664px;height:936px;z-index:7;background:transparent;mix-blend-mode:normal;pointer-events:none;display:block}
+#echo-art,#eye-visualizer{display:none!important}
 .environment-label{position:absolute;left:18px;top:16px;z-index:10;pointer-events:none;color:rgba(38,231,255,.78);font-size:10px;letter-spacing:.14em;text-shadow:0 0 8px rgba(38,231,255,.45);white-space:nowrap}
 .scanline{position:absolute;inset:0;z-index:7;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0,transparent 4px,rgba(38,231,255,.045) 5px,transparent 6px)}
 .art-footer{position:absolute;left:18px;right:18px;bottom:14px;z-index:11;display:flex;justify-content:space-between;gap:12px;font-size:10px;letter-spacing:.14em;color:rgba(127,165,186,.9);text-shadow:0 0 7px rgba(0,0,0,.9);pointer-events:none}
