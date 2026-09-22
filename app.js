@@ -91,11 +91,17 @@ function resizeCanvas(){
   const scale=Math.min(r.width/FACE.width,r.height/FACE.height);
   const ox=(r.width-FACE.width*scale)/2;
   const oy=(r.height-FACE.height*scale)/2;
-  const mouthRx=(FACE.mouth.openingWidth*scale)/2;
-  const mouthRy=(FACE.mouth.openingHeight*scale)/2;
+  const mouthW=FACE.mouth.openingWidth*scale;
+  const mouthH=FACE.mouth.openingHeight*scale;
   const mouthX=ox+FACE.mouth.cx*scale;
   const mouthY=oy+FACE.mouth.cy*scale;
-  const mouthClip=`ellipse(${mouthRx}px ${mouthRy}px at ${mouthX}px ${mouthY}px)`;
+  const mouthTop=mouthY-mouthH/2;
+  const mouthLeft=mouthX-mouthW/2;
+  const clipTop=Math.max(0,mouthTop);
+  const clipRight=Math.max(0,r.width-(mouthLeft+mouthW));
+  const clipBottom=Math.max(0,r.height-(mouthTop+mouthH));
+  const clipLeft=Math.max(0,mouthLeft);
+  const mouthClip=`inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)`;
   mouthCanvas.style.clipPath=mouthClip;
   mouthCanvas.style.webkitClipPath=mouthClip;
 
@@ -303,81 +309,26 @@ function updateEyeTarget(time){
       const dy=pointer.y-eye.rest.y;
       const distance=Math.hypot(dx,dy);
 
-      // Vector tracking: direction first, then a fixed maximum travel.
+      // Tracking calculation is retained for future use, but the production
+      // eye canvas is intentionally invisible for this clean baseline.
       const maxTravel=6;
       const travel=Math.min(maxTravel,distance);
       const nx=distance>0.001?dx/distance:0;
       const ny=distance>0.001?dy/distance:0;
 
-      const proposedX=eye.rest.x+nx*travel;
-      const proposedY=eye.rest.y+ny*travel;
-      const clamped=clampPupilToSocket(proposedX,proposedY,eye);
-
-      eyeTargetX[i]=clamped.x-eye.rest.x;
-      eyeTargetY[i]=clamped.y-eye.rest.y;
+      eyeTargetX[i]=nx*travel;
+      eyeTargetY[i]=ny*travel;
     });
     return;
   }
 
-  if(time>=nextEyeMove){
-    nextEyeMove=time+2200+Math.random()*3200;
-    FACE.eyes.forEach((eye,i)=>{
-      const angle=Math.random()*Math.PI*2;
-      const travel=2+Math.random()*4;
-      const clamped=clampPupilToSocket(
-        eye.rest.x+Math.cos(angle)*travel,
-        eye.rest.y+Math.sin(angle)*travel,
-        eye
-      );
-      eyeTargetX[i]=clamped.x-eye.rest.x;
-      eyeTargetY[i]=clamped.y-eye.rest.y;
-    });
-  }
+  // Autonomous eye motion intentionally disabled.
 }
 
-function drawEye(eye,index,closure){
-  const rest=imagePoint(eye.rest.x,eye.rest.y);
-  const socket=imagePoint(eye.socket.cx,eye.socket.cy);
-  const s=rest.s;
-  const r=eye.highlightRadius*s;
-  const ix=rest.x+eyeX[index]*s;
-  const iy=rest.y+eyeY[index]*s;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(socket.x,socket.y,eye.socket.rx*s,eye.socket.ry*s,0,0,Math.PI*2);
-  ctx.clip();
-
-  // The PNG already contains the eyeball, iris and pupil.
-  // Production mode draws only a tiny moving catchlight.
-  if(closure<1){
-    // A tiny catchlight is the only eye overlay. The PNG supplies the actual iris/pupil.
-    ctx.globalCompositeOperation="screen";
-    ctx.fillStyle="rgba(220,250,255,.24)";
-    ctx.beginPath();
-    ctx.arc(ix-r*.22,iy-r*.22,r,0,Math.PI*2);
-    ctx.fill();
-  }
-
-  if(DEBUG_FACE){
-    ctx.globalCompositeOperation="source-over";
-    ctx.strokeStyle="rgba(255,0,255,.65)";
-    ctx.lineWidth=1;
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
-function drawEyes(time){
-  updateEyeTarget(time);
-  updateBlink(time);
-
-  FACE.eyes.forEach((eye,i)=>{
-    eyeX[i]+=(eyeTargetX[i]-eyeX[i])*.11;
-    eyeY[i]+=(eyeTargetY[i]-eyeY[i])*.11;
-    drawEye(eye,i,blinkAmount);
-  });
+function drawEyes(){
+  // Intentionally render zero visible pixels.
+  // Echo's eyes are supplied entirely by echo-frame-02.png.
+  ctx.clearRect(0,0,eyeCanvas.clientWidth,eyeCanvas.clientHeight);
 }
 
 function drawSpeechMouth(level){
@@ -410,14 +361,6 @@ function drawSpeechMouth(level){
   }
   mouthCtx.stroke();
 
-  if(DEBUG_FACE){
-    mouthCtx.strokeStyle="rgba(255,0,255,.65)";
-    mouthCtx.lineWidth=1;
-    mouthCtx.beginPath();
-    mouthCtx.ellipse(p.x,p.y,width*.5,height*.5,0,0,Math.PI*2);
-    mouthCtx.stroke();
-  }
-
   mouthCtx.restore();
 }
 
@@ -426,7 +369,7 @@ function renderFace(time){
   mouthCtx.clearRect(0,0,mouthCanvas.clientWidth,mouthCanvas.clientHeight);
   ctx.clearRect(0,0,eyeCanvas.clientWidth,eyeCanvas.clientHeight);
   drawSpeechMouth(level);
-  drawEyes(time);
+  drawEyes();
 }
 
 function typeTransmission(lines){
