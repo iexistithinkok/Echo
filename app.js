@@ -280,53 +280,104 @@ function updateBlink(time){
 }
 
 function updateEyeTarget(time){
-  if(pointerActive){eyeTargetX=pointerEyeX;eyeTargetY=pointerEyeY;return;}
+  if(pointerActive){
+    const pointer=pointerArtworkPoint(pointerClientX,pointerClientY);
+
+    FACE.eyes.forEach((eye,i)=>{
+      const dx=pointer.x-eye.rest.x;
+      const dy=pointer.y-eye.rest.y;
+      const distance=Math.hypot(dx,dy);
+
+      // Vector tracking: direction first, then a fixed maximum travel.
+      const maxTravel=28;
+      const travel=Math.min(maxTravel,distance);
+      const nx=distance>0.001?dx/distance:0;
+      const ny=distance>0.001?dy/distance:0;
+
+      const proposedX=eye.rest.x+nx*travel;
+      const proposedY=eye.rest.y+ny*travel;
+      const clamped=clampPupilToSocket(proposedX,proposedY,eye);
+
+      eyeTargetX[i]=clamped.x-eye.rest.x;
+      eyeTargetY[i]=clamped.y-eye.rest.y;
+    });
+    return;
+  }
+
   if(time>=nextEyeMove){
     nextEyeMove=time+2200+Math.random()*3200;
-    eyeTargetX=(Math.random()-.5)*11;
-    eyeTargetY=(Math.random()-.5)*5;
+    FACE.eyes.forEach((eye,i)=>{
+      const angle=Math.random()*Math.PI*2;
+      const travel=4+Math.random()*7;
+      const clamped=clampPupilToSocket(
+        eye.rest.x+Math.cos(angle)*travel,
+        eye.rest.y+Math.sin(angle)*travel,
+        eye
+      );
+      eyeTargetX[i]=clamped.x-eye.rest.x;
+      eyeTargetY[i]=clamped.y-eye.rest.y;
+    });
   }
 }
 
-function drawEye(eye,gx,gy,closure){
-  const p=imagePoint(eye.cx,eye.cy),s=p.s;
-  const w=eye.w*s,h=eye.h*s;
-  const irisR=Math.min(w,h)*.10;
-  const ix=p.x+gx*s*.72,iy=p.y+gy*s*.72;
+function drawEye(eye,index,closure){
+  const rest=imagePoint(eye.rest.x,eye.rest.y);
+  const socket=imagePoint(eye.socket.cx,eye.socket.cy);
+  const s=rest.s;
+  const irisR=eye.irisRadius*s;
+  const pupilR=eye.pupilRadius*s;
+  const ix=rest.x+eyeX[index]*s;
+  const iy=rest.y+eyeY[index]*s;
 
   ctx.save();
   ctx.beginPath();
-  ctx.ellipse(p.x,p.y,w*.5,h*.5,0,0,Math.PI*2);
+  ctx.ellipse(
+    socket.x,
+    socket.y,
+    eye.socket.rx*s,
+    eye.socket.ry*s,
+    0,0,Math.PI*2
+  );
   ctx.clip();
 
-  /* No glow, bloom, shadow, or gradient: just the tracking iris. */
+  // Clean tracking iris: no glow, bloom, gradient, or oversized dot.
   ctx.globalCompositeOperation="source-over";
   ctx.strokeStyle="#26e7ff";
-  ctx.lineWidth=Math.max(.8,1.1*s);
-  ctx.beginPath();ctx.arc(ix,iy,irisR,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=Math.max(.8,.9*s);
+  ctx.beginPath();
+  ctx.arc(ix,iy,irisR,0,Math.PI*2);
+  ctx.stroke();
 
   ctx.fillStyle="#26e7ff";
-  ctx.beginPath();ctx.arc(ix,iy,irisR*.43,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();
+  ctx.arc(ix,iy,pupilR,0,Math.PI*2);
+  ctx.fill();
 
   ctx.fillStyle="#02060d";
-  ctx.beginPath();ctx.arc(ix,iy,irisR*.22,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();
+  ctx.arc(ix,iy,pupilR*.48,0,Math.PI*2);
+  ctx.fill();
 
   if(closure>0){
-    const cover=h*.5*closure;
+    const cover=eye.socket.ry*s*closure;
+    const w=eye.socket.rx*2*s;
     ctx.fillStyle="rgba(2,6,13,.96)";
-    ctx.fillRect(p.x-w/2,p.y-h/2,w,cover);
-    ctx.fillRect(p.x-w/2,p.y+h/2-cover,w,cover);
+    ctx.fillRect(socket.x-w/2,socket.y-eye.socket.ry*s,w,cover);
+    ctx.fillRect(socket.x-w/2,socket.y+eye.socket.ry*s-cover,w,cover);
   }
+
   ctx.restore();
 }
 
 function drawEyes(time){
   updateEyeTarget(time);
   updateBlink(time);
-  eyeX+=(eyeTargetX-eyeX)*.08;
-  eyeY+=(eyeTargetY-eyeY)*.08;
-  const closure=blinkAmount;
-  FACE.eyes.forEach(e=>drawEye(e,eyeX,eyeY,closure));
+
+  FACE.eyes.forEach((eye,i)=>{
+    eyeX[i]+=(eyeTargetX[i]-eyeX[i])*.11;
+    eyeY[i]+=(eyeTargetY[i]-eyeY[i])*.11;
+    drawEye(eye,i,blinkAmount);
+  });
 }
 
 function drawSpeechMouth(level){
