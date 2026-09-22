@@ -32,7 +32,7 @@ const trailerMode=document.querySelector("#trailer-mode");
 const FACE={width:1664,height:936,eyes:[
   {cx:656,cy:293,w:252,h:132},
   {cx:1008,cy:293,w:252,h:132}
-],mouth:{cx:832,cy:596,width:174}};
+],mouth:{cx:808,cy:627,width:300,height:52}};
 
 let audioContext=null,analyser=null,sourceNode=null,frequencyData=null,waveformData=null;
 let animationFrame=null,tracks=[],activeTrack=-1,localObjectUrl=null;
@@ -93,9 +93,7 @@ function prettyName(path){
   return f.replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
 }
 
-function isAudioPath(path){
-  return path.toLowerCase().startsWith("assets/")&&AUDIO_EXTENSIONS.includes(path.split(".").pop().toLowerCase());
-}
+function isAudioPath(path){return path.toLowerCase().startsWith("assets/")&&AUDIO_EXTENSIONS.includes(path.split(".").pop().toLowerCase());}
 
 async function discoverAudio(){
   libraryStatus.textContent="SCANNING ASSETS...";
@@ -240,32 +238,36 @@ function updateEyeTarget(time){
 function drawEye(eye,gx,gy,closure,level){
   const p=imagePoint(eye.cx,eye.cy),s=p.s;
   const w=eye.w*s,h=eye.h*s;
-  const irisR=Math.max(8*s,Math.min(w,h)*.19);
+  // Keep the tracking effect, but make the glowing iris a small pupil instead of a large dot.
+  const irisR=Math.min(w,h)*.10;
   const ix=p.x+gx*s*.72,iy=p.y+gy*s*.72;
+
   ctx.save();
   ctx.beginPath();
   ctx.ellipse(p.x,p.y,w*.5,h*.5,0,0,Math.PI*2);
   ctx.clip();
-
-  const glow=ctx.createRadialGradient(ix,iy,irisR*.15,ix,iy,irisR*1.7);
-  glow.addColorStop(0,"rgba(235,255,255,.95)");
-  glow.addColorStop(.25,"rgba(38,231,255,.95)");
-  glow.addColorStop(.7,"rgba(36,140,255,.28)");
-  glow.addColorStop(1,"rgba(0,0,0,0)");
   ctx.globalCompositeOperation="screen";
+
+  const glow=ctx.createRadialGradient(ix,iy,irisR*.15,ix,iy,irisR*1.9);
+  glow.addColorStop(0,"rgba(235,255,255,.90)");
+  glow.addColorStop(.22,"rgba(38,231,255,.82)");
+  glow.addColorStop(.62,"rgba(36,140,255,.18)");
+  glow.addColorStop(1,"rgba(0,0,0,0)");
   ctx.fillStyle=glow;
-  ctx.beginPath();ctx.arc(ix,iy,irisR*1.7,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(ix,iy,irisR*1.9,0,Math.PI*2);ctx.fill();
 
-  ctx.fillStyle="rgba(38,231,255,.9)";
-  ctx.shadowColor="rgba(38,231,255,.95)";ctx.shadowBlur=8+level*12;
-  ctx.beginPath();ctx.arc(ix,iy,irisR,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=`rgba(38,231,255,${.65+level*.25})`;
+  ctx.lineWidth=Math.max(.8,1.1*s);
+  ctx.shadowColor="rgba(38,231,255,.8)";
+  ctx.shadowBlur=4+level*8;
+  ctx.beginPath();ctx.arc(ix,iy,irisR,0,Math.PI*2);ctx.stroke();
 
-  ctx.fillStyle="#02060d";
+  ctx.fillStyle="rgba(5,20,32,.95)";
   ctx.shadowBlur=0;
-  ctx.beginPath();ctx.arc(ix,iy,irisR*.42,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(ix,iy,irisR*.48,0,Math.PI*2);ctx.fill();
 
-  ctx.fillStyle="rgba(238,250,255,.95)";
-  ctx.beginPath();ctx.arc(ix-irisR*.25,iy-irisR*.25,irisR*.14,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="rgba(238,250,255,.9)";
+  ctx.beginPath();ctx.arc(ix-irisR*.22,iy-irisR*.22,Math.max(.9,irisR*.16),0,Math.PI*2);ctx.fill();
 
   if(closure>0){
     const cover=h*.5*closure;
@@ -287,28 +289,50 @@ function drawEyes(level,time){
 
 function drawSpeechMouth(level){
   const p=imagePoint(FACE.mouth.cx,FACE.mouth.cy),s=p.s;
-  const width=FACE.mouth.width*s,open=(3+37*level)*s;
+  const width=FACE.mouth.width*s;
+  const height=FACE.mouth.height*s;
+  const amplitude=(2.5+16*level)*s;
+
   ctx.save();
   ctx.globalCompositeOperation="screen";
-  ctx.shadowColor="rgba(38,231,255,.95)";
-  ctx.shadowBlur=5+level*17;
-  ctx.fillStyle=`rgba(0,4,12,${.3+level*.5})`;
-  ctx.beginPath();ctx.ellipse(p.x,p.y+open*.18,width*.46,Math.max(2.5*s,open*.43),0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=`rgba(92,239,255,${.32+level*.62})`;
-  ctx.lineWidth=Math.max(.9,1.35*s);
-  ctx.beginPath();ctx.moveTo(p.x-width*.49,p.y);ctx.quadraticCurveTo(p.x-width*.18,p.y-open*.18,p.x,p.y-open*.42);ctx.quadraticCurveTo(p.x+width*.18,p.y-open*.18,p.x+width*.49,p.y);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(p.x-width*.47,p.y+open*.08);ctx.quadraticCurveTo(p.x-width*.16,p.y+open*.62,p.x,p.y+open*.68);ctx.quadraticCurveTo(p.x+width*.16,p.y+open*.62,p.x+width*.47,p.y+open*.08);ctx.stroke();
-  if(level>.035&&waveformData){
-    const bars=21,span=width*.72;
-    for(let i=0;i<bars;i++){
+
+  // Confine the animation to the black interior of the mouth so it never creates a second mouth.
+  ctx.beginPath();
+  ctx.ellipse(p.x,p.y,width*.5,height*.5,0,0,Math.PI*2);
+  ctx.clip();
+
+  const bars=31;
+  const span=width*.78;
+  ctx.strokeStyle=`rgba(92,239,255,${.26+level*.60})`;
+  ctx.lineWidth=Math.max(.8,1.1*s);
+  ctx.shadowColor="rgba(38,231,255,.75)";
+  ctx.shadowBlur=3+level*9;
+
+  ctx.beginPath();
+  for(let i=0;i<bars;i++){
+    const x=p.x-span/2+span*i/(bars-1);
+    let wave=0;
+    if(waveformData){
       const idx=Math.floor(i*(waveformData.length-1)/(bars-1));
-      const wave=Math.abs(waveformData[idx]-128)/128;
-      const bh=Math.max(1,(1.5+open*(.12+wave*.32))*(.55+level*.8));
-      const x=p.x-span/2+span*i/(bars-1);
-      ctx.fillStyle=`rgba(140,247,255,${.16+level*.48})`;
-      ctx.fillRect(x-Math.max(.5,.65*s),p.y-bh/2,Math.max(1,1.1*s),bh);
+      wave=(waveformData[idx]-128)/128;
     }
+    const local=(.25+.75*level)*(0.35+Math.abs(wave)*.65);
+    const y1=p.y-amplitude*local;
+    const y2=p.y+amplitude*local;
+    ctx.moveTo(x,y1);
+    ctx.lineTo(x,y2);
   }
+  ctx.stroke();
+
+  // Quiet center trace keeps the mouth alive even when there is little audio.
+  ctx.strokeStyle="rgba(92,239,255,.18)";
+  ctx.shadowBlur=2;
+  ctx.lineWidth=Math.max(.7,.9*s);
+  ctx.beginPath();
+  ctx.moveTo(p.x-span*.45,p.y);
+  ctx.lineTo(p.x+span*.45,p.y);
+  ctx.stroke();
+
   ctx.restore();
 }
 
